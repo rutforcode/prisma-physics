@@ -3,6 +3,11 @@ import { AuroraBackground } from "@/components/AuroraBackground";
 import { GlassFooter } from "@/components/GlassFooter";
 import { ConceptCard } from "@/components/feed/ConceptCard";
 import { ConceptReader } from "@/components/feed/ConceptReader";
+import {
+  FeedPostCard,
+  type FeedPostItem,
+} from "@/components/feed/FeedPostCard";
+import { FeedPostComposer } from "@/components/feed/FeedPostComposer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
@@ -10,7 +15,13 @@ import { cn } from "@/lib/utils";
 import { DIFFICULTIES, TOPICS, type DifficultyId } from "@/lib/topic-meta";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, Search, SlidersHorizontal, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Megaphone,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 function FeedSkeleton() {
@@ -49,6 +60,11 @@ export default function Dashboard() {
   const seed = useMutation(api.concepts.seed);
   const seededRef = useRef(false);
 
+  const feedPosts = useQuery(api.feedPosts.list);
+  const seedFeedPosts = useMutation(api.feedPosts.seed);
+  const seededFeedRef = useRef(false);
+  const isAdmin = user?.role === "admin";
+
   // Debounce the search box
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250);
@@ -66,6 +82,18 @@ export default function Dashboard() {
       void seed();
     }
   }, [concepts, topicCounts, seed]);
+
+  // Seed the demo announcements once
+  useEffect(() => {
+    if (
+      !seededFeedRef.current &&
+      feedPosts !== undefined &&
+      feedPosts.length === 0
+    ) {
+      seededFeedRef.current = true;
+      void seedFeedPosts();
+    }
+  }, [feedPosts, seedFeedPosts]);
 
   const isLoading = concepts === undefined;
   const selected = selectedSlug
@@ -132,6 +160,59 @@ export default function Dashboard() {
               : `${concepts.length} concept${concepts.length === 1 ? "" : "s"} · ${topicCounts?.length ?? 0} topics`}
           </p>
         </div>
+
+        {/* From the team — admin announcements at the top of the feed */}
+        <section className="mt-10">
+          <div className="flex items-center gap-2">
+            <Megaphone className="size-4 text-primary" />
+            <h2 className="font-display text-xl font-semibold tracking-tight">
+              From the team
+            </h2>
+          </div>
+
+          {isAdmin && (
+            <div className="mt-4 max-w-3xl">
+              <FeedPostComposer />
+            </div>
+          )}
+
+          <div className="mt-4 max-w-3xl space-y-5">
+            {feedPosts === undefined ? (
+              <>
+                <div className="glass rounded-3xl p-6">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-32 rounded-md" />
+                      <Skeleton className="h-3 w-20 rounded-md" />
+                    </div>
+                  </div>
+                  <Skeleton className="mt-4 h-6 w-2/3 rounded-lg" />
+                  <Skeleton className="mt-3 h-4 w-full rounded-md" />
+                </div>
+                <div className="glass rounded-3xl p-6">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-32 rounded-md" />
+                      <Skeleton className="h-3 w-20 rounded-md" />
+                    </div>
+                  </div>
+                  <Skeleton className="mt-4 h-6 w-2/3 rounded-lg" />
+                  <Skeleton className="mt-3 h-4 w-full rounded-md" />
+                </div>
+              </>
+            ) : (
+              (feedPosts as FeedPostItem[]).map((post) => (
+                <FeedPostCard
+                  key={post._id}
+                  post={post}
+                  canDelete={isAdmin}
+                />
+              ))
+            )}
+          </div>
+        </section>
 
         {!selected && (
           <>

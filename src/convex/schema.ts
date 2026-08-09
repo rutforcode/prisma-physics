@@ -59,6 +59,15 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
+    // Admin-authored announcements shown at the top of the study feed
+    feedPosts: defineTable({
+      authorId: v.optional(v.id("users")), // absent for seeded "Prism Team" posts
+      title: v.string(),
+      body: v.string(),
+      topic: v.optional(topicValidator),
+      imageStorageId: v.optional(v.id("_storage")),
+    }).index("by_author", ["authorId"]),
+
     // Community posts — students share questions, notes, and explanations
     posts: defineTable({
       authorId: v.id("users"),
