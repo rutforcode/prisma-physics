@@ -30,14 +30,24 @@ export const difficultyValidator = v.union(
 );
 export type Difficulty = Infer<typeof difficultyValidator>;
 
-// Physics topics covered by the feed
+// Physics topics covered by the feed — the full undergraduate syllabus
 export const TOPIC_IDS = [
   "mechanics",
-  "electromagnetism",
+  "fluids",
   "thermodynamics",
+  "statistical",
+  "electromagnetism",
+  "circuits",
   "waves",
+  "optics",
   "quantum",
+  "atomic",
+  "particle",
+  "solidstate",
   "relativity",
+  "cosmology",
+  "classical",
+  "mathematical",
 ] as const;
 
 export const topicValidator = v.union(...TOPIC_IDS.map((t) => v.literal(t)));

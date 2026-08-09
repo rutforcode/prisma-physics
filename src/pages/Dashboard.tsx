@@ -383,9 +383,8 @@ export default function Dashboard() {
                   Nothing matches that
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Try a different topic, level, or search term — the feed has
-                  concepts across mechanics, electromagnetism, thermodynamics,
-                  waves, quantum, and relativity.
+                  Try a different topic, level, or search term — the feed spans
+                  sixteen topics, from fluid mechanics to cosmology.
                 </p>
                 <button
                   type="button"

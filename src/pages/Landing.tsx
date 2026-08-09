@@ -43,6 +43,30 @@ const FEATURED = [
     summary:
       "The electric flux through any closed surface equals the charge inside it — one statement that tames the electric field of anything symmetric.",
   },
+  {
+    slug: "bernoullis-principle",
+    title: "Bernoulli's Principle",
+    topic: "fluids",
+    difficulty: "intermediate",
+    summary:
+      "In a smoothly flowing fluid, faster flow means lower pressure — the physics behind lift, spray, and why a shower curtain billows inward.",
+  },
+  {
+    slug: "hubbles-law",
+    title: "Hubble's Law",
+    topic: "cosmology",
+    difficulty: "intro",
+    summary:
+      "The farther a galaxy is, the faster it recedes — one equation that reveals the expansion of the universe and a timeline back to the Big Bang.",
+  },
+  {
+    slug: "snells-law",
+    title: "Snell's Law",
+    topic: "optics",
+    difficulty: "intro",
+    summary:
+      "Light bends when it changes medium — the single rule behind lenses, prisms, fiber optics, and mirages.",
+  },
 ] as const;
 
 const STEPS = [
@@ -221,17 +245,17 @@ export default function Landing() {
             <div className="mt-12 flex items-center gap-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <BookOpen className="size-4 text-primary" />
-                9 concepts
+                20 concepts
               </span>
               <span className="h-4 w-px bg-border" />
               <span className="flex items-center gap-1.5">
                 <Atom className="size-4 text-primary" />
-                6 topics
+                16 topics
               </span>
               <span className="h-4 w-px bg-border" />
               <span className="flex items-center gap-1.5">
                 <Clock3 className="size-4 text-primary" />
-                ~70 min of reading
+                ~2.5 h of reading
               </span>
             </div>
           </motion.div>
@@ -262,7 +286,7 @@ export default function Landing() {
                 </Link>
               </Button>
             </div>
-            <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {TOPICS.map((topic) => (
                 <Link
                   key={topic.id}
@@ -350,9 +374,12 @@ export default function Landing() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                 The feed
               </p>
-              <h2 className="font-display mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
-                Start with the classics
-              </h2>
+            <h2 className="font-display mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
+              Start with the classics
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A taste of the 20-concept feed across all sixteen topics.
+            </p>
             </div>
             <Button asChild variant="ghost" className="shrink-0">
               <Link to="/dashboard">

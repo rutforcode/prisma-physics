@@ -321,6 +321,391 @@ export const SEED_CONCEPTS = [
       "GPS satellites must correct for relativistic time dilation to stay accurate.",
     ],
   },
+  {
+    slug: "superposition-and-interference",
+    title: "Superposition and Interference",
+    topic: "waves" as const,
+    difficulty: "intermediate" as const,
+    readingMinutes: 8,
+    summary:
+      "Waves add where they meet — crest on crest grows, crest on trough cancels. Superposition turns two ordinary waves into interference patterns, standing waves, and the physics inside every instrument and interferometer.",
+    keyFormula: String.raw`y_{\text{tot}} = y_1 + y_2, \qquad d \sin \theta = m \lambda`,
+    tags: ["interference", "standing waves", "double slit"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "Drop two pebbles into a pond and watch the ripples cross: where two crests meet the water rises higher, and where a crest meets a trough it flattens out. This is superposition — at every point the total disturbance is simply the sum of the individual waves. The waves pass through each other untouched and continue on, but in the region where they overlap they briefly add, subtract, and create the intricate lacework of an interference pattern.",
+      },
+      {
+        heading: "The mathematics",
+        body: "For two waves of the same frequency arriving at a point with path difference $\\Delta$, the phase difference is $\\delta = 2\\pi\\Delta/\\lambda$. The waves add constructively when $\\delta = 2\\pi m$, i.e. when $\\Delta = m\\lambda$ — crest on crest — and destructively when $\\Delta = (m + \\tfrac{1}{2})\\lambda$. For two slits separated by $d$ sending light to a screen far away at angle $\\theta$, the path difference is $d\\sin\\theta$, giving bright fringes at $d\\sin\\theta = m\\lambda$ and dark fringes at $d\\sin\\theta = (m + \\tfrac{1}{2})\\lambda$. At every instant and point, the total field obeys $y_{\\text{tot}} = y_1 + y_2$.",
+      },
+      {
+        heading: "Worked example",
+        body: "Light of wavelength $500\\ \\text{nm}$ passes through a double slit with separation $d = 0.2\\ \\text{mm}$ onto a screen $2\\ \\text{m}$ away. The fringe spacing is $\\Delta y = \\lambda L/d = (5 \\times 10^{-7})(2)/(2 \\times 10^{-4}) = 5\\ \\text{mm}$. Alternate bright and dark bands, each $5\\ \\text{mm}$ apart, appear on the screen. Cover one slit and the bands vanish into a single broad diffraction blob — the interference pattern is unambiguous evidence that light is a wave.",
+      },
+      {
+        heading: "Why it matters",
+        body: "Interference is both a nuisance and a precision tool. Thin-film coatings use it to cancel reflections in lenses and create iridescent soap bubbles; noise-cancelling headphones generate inverted waves to cancel ambient sound; LIGO measures ripples in spacetime by watching laser interference shift by a fraction of a proton's width. Standing waves — the superposition of a wave with its own reflection — are the physics of every string, pipe, and drum, and the double-slit version of this phenomenon is the doorway into quantum mechanics.",
+      },
+    ],
+    takeaways: [
+      "Waves add linearly at every point: the total is the sum of the parts.",
+      "Constructive interference when the path difference is a whole number of wavelengths; destructive at half-integer values.",
+      "Standing waves are a wave superposing with its own reflection.",
+      "Interference is the working principle of lenses, noise cancellation, and gravitational-wave detectors.",
+    ],
+  },
+  {
+    slug: "snells-law",
+    title: "Snell's Law and Geometric Optics",
+    topic: "optics" as const,
+    difficulty: "intro" as const,
+    readingMinutes: 7,
+    summary:
+      "Light bends when it crosses from one medium into another — the rule that governs lenses, prisms, fiber optics, and mirages. Snell's law is the whole of geometric optics in one equation.",
+    keyFormula: String.raw`n_1 \sin \theta_1 = n_2 \sin \theta_2, \qquad \theta_c = \sin^{-1}\left(\frac{n_2}{n_1}\right)`,
+    tags: ["refraction", "total internal reflection", "lenses"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "A stick dipped in water looks bent. Light slows down when it enters water or glass, and the change of speed bends its path — like a marching band hitting a patch of mud at an angle: the side that enters first slows first, and the whole line pivots toward the mud. Light bends toward the normal when entering a denser (slower) medium and away from it when leaving. Fermat's principle sharpens this into a law: light takes the path that minimizes travel time, and the kink at the surface is simply the fastest route.",
+      },
+      {
+        heading: "The mathematics",
+        body: "Each transparent material is characterized by its refractive index $n = c/v$, the ratio of the speed of light in vacuum to its speed in the material ($n \\approx 1$ for air, $1.33$ for water, $1.5$ for glass). Snell's law relates the angles on either side of a boundary: $n_1 \\sin\\theta_1 = n_2 \\sin\\theta_2$. When light travels from a dense to a rare medium, the outgoing angle grows until it reaches $90^\\circ$; beyond the critical angle $\\theta_c = \\sin^{-1}(n_2/n_1)$ the light cannot escape at all — total internal reflection.",
+      },
+      {
+        heading: "Worked example",
+        body: "A laser beam in air strikes a glass block ($n = 1.5$) at $45^\\circ$ to the normal. Snell's law gives $\\sin\\theta_2 = \\sin 45^\\circ / 1.5 \\approx 0.471$, so the beam enters at about $28^\\circ$ — it bends toward the normal by roughly $17^\\circ$. Now send light from glass back toward air at $50^\\circ$: since $50^\\circ > \\theta_c = \\sin^{-1}(1/1.5) \\approx 41.8^\\circ$, no light escapes — it reflects perfectly back into the glass.",
+      },
+      {
+        heading: "Why it matters",
+        body: "Snell's law designs every lens in your eye, camera, and microscope, and it explains prisms splitting white light into a rainbow. Total internal reflection is the entire principle of optical fiber, which carries internet traffic as light bouncing down a glass thread. The same physics creates mirages (light bending in hot air) and lets fibre-optic endoscopes look inside the human body.",
+      },
+    ],
+    takeaways: [
+      "Light bends toward the normal when entering a medium where it travels slower.",
+      String.raw`Snell's law: $n_1 \sin \theta_1 = n_2 \sin \theta_2$.`,
+      "Total internal reflection happens beyond the critical angle and powers fiber optics.",
+      "Lenses, prisms, mirages, and rainbows all follow from the same bending rule.",
+    ],
+  },
+  {
+    slug: "bernoullis-principle",
+    title: "Bernoulli's Principle",
+    topic: "fluids" as const,
+    difficulty: "intermediate" as const,
+    readingMinutes: 7,
+    summary:
+      "In a smoothly flowing fluid, faster flow means lower pressure. Bernoulli's equation is energy conservation applied to a fluid, and it explains lift, spray, siphons, and how a sailing boat sails into the wind.",
+    keyFormula: String.raw`P + \tfrac{1}{2}\rho v^2 + \rho g h = \text{const}`,
+    tags: ["fluid flow", "pressure", "lift"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "Squeeze a garden hose nozzle and the water shoots out faster — and the pressure inside the narrowed section drops. That trade-off is Bernoulli: for an incompressible, frictionless fluid flowing steadily, the total of pressure energy, kinetic energy per unit volume, and gravitational potential per unit volume stays constant along a streamline. Speed up the flow and the pressure must fall to keep the total the same.",
+      },
+      {
+        heading: "The mathematics",
+        body: "The equation reads $P + \\tfrac{1}{2}\\rho v^2 + \\rho g h = \\text{const}$ along a streamline, where $P$ is pressure, $\\rho$ the density, $v$ the speed, and $h$ the height. Continuity demands that the same mass flows through every cross-section: $A_1 v_1 = A_2 v_2$, so a narrower pipe forces faster flow. Combined, the two equations let you compute pressure changes from geometry alone. For a fluid at rest the equation reduces to the hydrostatic formula $\\Delta P = \\rho g \\Delta h$.",
+      },
+      {
+        heading: "Worked example",
+        body: "Water ($\\rho = 1000\\ \\text{kg/m}^3$) flows through a pipe of area $4\\ \\text{cm}^2$ at $1\\ \\text{m/s}$; the pipe narrows to $1\\ \\text{cm}^2$, so by continuity $v_2 = 4\\ \\text{m/s}$. Bernoulli at constant height gives $P_2 = P_1 + \\tfrac{1}{2}\\rho(v_1^2 - v_2^2) = P_1 - 7500\\ \\text{Pa}$ — a pressure drop of $7.5\\ \\text{kPa}$ in the throat, exactly the effect that sucks fuel into a carburetor or perfume up an atomizer.",
+      },
+      {
+        heading: "Why it matters",
+        body: "Bernoulli's principle is the heart of flight: the curved top of a wing speeds the air above it, lowering pressure and producing lift (with the wing's angle of attack doing the rest of the job). It explains how aircraft instruments measure airspeed with a Pitot tube, why a shower curtain billows inward, and why fast-moving blood in a narrowed artery exerts less pressure on the wall — the reason aneurysms are dangerous. Sailboats use the same low-pressure region on the leeward side of the sail to sail into the wind.",
+      },
+    ],
+    takeaways: [
+      "Faster fluid flow means lower pressure — energy conservation per unit volume.",
+      String.raw`$P + \tfrac{1}{2}\rho v^2 + \rho g h$ is constant along a streamline.`,
+      "Continuity ($Av$ constant) forces narrow pipes to speed the flow up.",
+      "Bernoulli explains lift, carburetors, Pitot tubes, and sailing into the wind.",
+    ],
+  },
+  {
+    slug: "maxwell-boltzmann-distribution",
+    title: "The Maxwell–Boltzmann Distribution",
+    topic: "statistical" as const,
+    difficulty: "intermediate" as const,
+    readingMinutes: 9,
+    summary:
+      "Gas molecules do not all move at one speed — they spread across a distribution that widens and shifts with temperature. The Maxwell–Boltzmann distribution turns a gas's molecular chaos into predictions about chemistry, fusion, and why a hot drink cools.",
+    keyFormula: String.raw`f(v) = 4\pi v^2 \left(\frac{m}{2\pi k_B T}\right)^{3/2} e^{-mv^2 / 2k_B T}`,
+    tags: ["kinetic theory", "gases", "temperature"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "A gas is a swarm of molecules colliding constantly, swapping energy on every impact. Left alone, the swarm settles into a steady pattern: most molecules move at a middle speed, a few crawl, and a precious few race far above the average. Heat the gas and the whole distribution stretches toward higher speeds. The Maxwell–Boltzmann distribution is the mathematical portrait of that pattern — the most probable arrangement, given that energy is conserved.",
+      },
+      {
+        heading: "The mathematics",
+        body: "The fraction of molecules with speed between $v$ and $v + dv$ is $f(v)\\,dv$ with $f(v) = 4\\pi v^2 \\left(\\frac{m}{2\\pi k_B T}\\right)^{3/2} e^{-mv^2/2k_B T}$. The factor $v^2$ counts how many velocity directions give the same speed; the exponential suppresses enormous speeds. Three characteristic speeds follow: the most probable $v_p = \\sqrt{2k_B T/m}$, the mean $\\bar{v} = \\sqrt{8k_B T/\\pi m}$, and the root-mean-square $v_{\\text{rms}} = \\sqrt{3k_B T/m}$ — the one that appears in $\\tfrac{1}{2}m v_{\\text{rms}}^2 = \\tfrac{3}{2}k_B T$.",
+      },
+      {
+        heading: "Worked example",
+        body: "Nitrogen molecules ($m \\approx 4.65 \\times 10^{-26}\\ \\text{kg}$) at room temperature $300\\ \\text{K}$: $v_{\\text{rms}} = \\sqrt{3k_B T/m} \\approx 517\\ \\text{m/s}$ — faster than a rifle bullet — with $v_p \\approx 422\\ \\text{m/s}$ and $\\bar{v} \\approx 476\\ \\text{m/s}$. Light hydrogen molecules move about four times faster at the same temperature because $v \\propto 1/\\sqrt{m}$.",
+      },
+      {
+        heading: "Why it matters",
+        body: "The high-speed tail of the distribution is where chemistry happens: only molecules with enough energy can break bonds in a collision, which is why reaction rates rocket with temperature and why molecules escape planetary atmospheres — light hydrogen leaks away from Earth while heavy gases stay. The distribution governs evaporation, effusion and Graham's law of separation, and it sets the conditions for controlled nuclear fusion, where a sufficiently hot gas must keep its fastest ions colliding hard enough to fuse.",
+      },
+    ],
+    takeaways: [
+      "Gas molecules spread across a speed distribution, not a single speed.",
+      "The distribution widens and shifts to higher speeds as temperature rises.",
+      String.raw`$v_{\text{rms}} = \sqrt{3k_B T/m}$ sets the average kinetic energy: $\tfrac{1}{2}m v_{\text{rms}}^2 = \tfrac{3}{2}k_B T$.`,
+      "The high-speed tail drives chemical reactions, evaporation, and atmospheric escape.",
+    ],
+  },
+  {
+    slug: "kirchhoffs-laws",
+    title: "Kirchhoff's Laws and DC Circuits",
+    topic: "circuits" as const,
+    difficulty: "intro" as const,
+    readingMinutes: 6,
+    summary:
+      "Two bookkeeping rules — charge never piles up at a junction, and energy is conserved around a loop — reduce any DC circuit, however tangled, to algebra. Kirchhoff's laws are the foundation of all circuit analysis.",
+    keyFormula: String.raw`\sum I_{\text{in}} = \sum I_{\text{out}}, \qquad \sum \mathcal{E} = \sum IR`,
+    tags: ["circuits", "current", "voltage"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "Think of electric current as water in pipes. At any junction, the water flowing in must equal the water flowing out — charge cannot accumulate at a T-junction. That is the junction rule. And if you walk around a closed loop of pipes, whatever pressure the pumps add must be exactly consumed by friction along the way — energy is conserved. That is the loop rule. Ohm's law $V = IR$ supplies the friction: each resistor drops voltage in proportion to the current through it.",
+      },
+      {
+        heading: "The mathematics",
+        body: "The junction rule states $\\sum I_{\\text{in}} = \\sum I_{\\text{out}}$ at every node. The loop rule states $\\sum \\mathcal{E} = \\sum IR$ around any closed loop (with signs set by the direction you traverse: voltage rises through a battery from minus to plus, and drops through resistors in the direction of current). For a circuit with $J$ junctions, you write $J - 1$ independent junction equations plus one loop equation per independent loop, and solve the resulting linear system for every current — even when the circuit is too tangled to simplify with series and parallel rules.",
+      },
+      {
+        heading: "Worked example",
+        body: "Two batteries, $\\mathcal{E}_1 = 12\\ \\text{V}$ and $\\mathcal{E}_2 = 6\\ \\text{V}$, sit in a single loop with resistors $R_1 = 2\\ \\Omega$ and $R_2 = 4\\ \\Omega$, connected opposing each other. Traverse the loop with the 12 V battery: $12 - 6 = I(2 + 4)$, so $6 = 6I$ and $I = 1\\ \\text{A}$, flowing in the direction the larger battery pushes. Flip the second battery to aid the first and the loop equation becomes $12 + 6 = 6I$, giving $I = 3\\ \\text{A}$. The same circuit, one sign change, three times the current — which is exactly why Kirchhoff's sign conventions must be applied systematically.",
+      },
+      {
+        heading: "Why it matters",
+        body: "Kirchhoff's laws analyze everything from a flashlight to the power grid: they determine how current splits through parallel bulbs, how an ECG traces the electrical activity of the heart, and how engineers size wiring so nothing melts. They are also the foundation on which the more advanced tools of circuit theory — mesh analysis, nodal analysis, and the full machinery of electronics — are built.",
+      },
+    ],
+    takeaways: [
+      "The junction rule: charge flowing in equals charge flowing out at every node.",
+      "The loop rule: voltage rises around a loop equal voltage drops.",
+      "Kirchhoff's laws reduce any DC circuit to a system of linear equations.",
+      "Ohm's law ($V = IR$) is the local rule; Kirchhoff's laws are the global bookkeeping.",
+    ],
+  },
+  {
+    slug: "radioactive-decay",
+    title: "Radioactive Decay and Half-Life",
+    topic: "atomic" as const,
+    difficulty: "intro" as const,
+    readingMinutes: 6,
+    summary:
+      "Unstable nuclei fall apart at random — but with such a reliable probability per second that a large sample decays with clockwork precision. Exponential decay and half-life are the tools of carbon dating, nuclear power, and medical imaging.",
+    keyFormula: String.raw`N(t) = N_0 e^{-\lambda t}, \qquad t_{1/2} = \frac{\ln 2}{\lambda}`,
+    tags: ["nuclear", "half-life", "dating"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "You cannot predict which individual nucleus decays, or when. But each nucleus carries a fixed probability per second of decaying — like a room of people each flipping a biased coin once a second. In every second, the same fraction of the remaining population decays, so the decay slows as the population shrinks: the number of survivors falls by half over each equal interval. That interval is the half-life, and it is the same whether you start with a billion nuclei or two.",
+      },
+      {
+        heading: "The mathematics",
+        body: "The decay rate is proportional to the number present: $dN/dt = -\\lambda N$, where $\\lambda$ is the decay constant. The solution is exponential decay $N(t) = N_0 e^{-\\lambda t}$. The half-life follows from $N(t_{1/2}) = N_0/2$: $t_{1/2} = \\ln 2/\\lambda$. The activity $A = \\lambda N$ — decays per second, measured in becquerels — also decays exponentially, which is why an old source is less dangerous: after seven half-lives only about one percent of the original activity remains.",
+      },
+      {
+        heading: "Worked example",
+        body: "Carbon-14 has a half-life of about $5730$ years, and living things hold a constant ratio of $^{14}\\text{C}$ to $^{12}\\text{C}$ until they die. A wooden artifact shows one quarter of the modern $^{14}\\text{C}$ abundance. Two half-lives have passed ($1 \\to \\tfrac{1}{2} \\to \\tfrac{1}{4}$), so the wood is about $2 \\times 5730 = 11460$ years old — a result archaeology and geology use every day, cross-checked with tree rings and ice cores.",
+      },
+      {
+        heading: "Why it matters",
+        body: "Radioactivity is everywhere in modern life. Carbon dating reads the age of ancient remains; PET scanners trace short-lived isotopes inside the body to map organs and tumors; smoke detectors use alpha-emitting americium; nuclear reactors and stars run on the fission and fusion of radioactive fuel. Understanding decay — and its exponential character — is also the first lesson in radiation safety: it tells you exactly how long a contaminated object stays dangerous.",
+      },
+    ],
+    takeaways: [
+      "Decay is random per nucleus but statistically exponential for a large sample.",
+      String.raw`$N(t) = N_0 e^{-\lambda t}$ with half-life $t_{1/2} = \ln 2 / \lambda$.`,
+      "After $n$ half-lives, a fraction $1/2^n$ of the original nuclei remains.",
+      "Half-life powers carbon dating, nuclear medicine, reactors, and radiation safety.",
+    ],
+  },
+  {
+    slug: "standard-model",
+    title: "The Standard Model of Particle Physics",
+    topic: "particle" as const,
+    difficulty: "advanced" as const,
+    readingMinutes: 10,
+    summary:
+      "The universe's matter is built from twelve elementary particles interacting through four forces exchanged by carrier particles. The Standard Model is the most precisely tested theory in science — and still leaves deep questions open.",
+    keyFormula: String.raw`SU(3) \times SU(2) \times U(1)`,
+    tags: ["quarks", "gauge bosons", "higgs"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "Strip matter down as far as physics can go and you find a remarkably small menu. Six quarks build protons, neutrons, and every atomic nucleus; six leptons include the electron that orbits it and the neutrinos that stream through you. Forces are not pulls but exchanges: particles toss messenger particles back and forth like ice-skaters exchanging a ball — the electromagnetic force exchanges photons, the strong force exchanges gluons, and the weak force exchanges W and Z bosons.",
+      },
+      {
+        heading: "The mathematics",
+        body: "The theory is a gauge field theory with the symmetry group $SU(3) \\times SU(2) \\times U(1)$: the $SU(3)$ color symmetry generates the strong force via eight gluons; $SU(2) \\times U(1)$ unifies the weak and electromagnetic forces, whose W and Z bosons and photon emerge when the Higgs field breaks the symmetry. Quarks and leptons arrange themselves into three generations — (up, down, electron, electron neutrino), (charm, strange, muon, muon neutrino), (top, bottom, tau, tau neutrino) — the generations differing only in mass. The Higgs boson, discovered at CERN in 2012, is the last piece of the puzzle, giving the W, Z, and fermions their masses.",
+      },
+      {
+        heading: "Worked example",
+        body: "A proton is two up quarks and a down quark (uud); a neutron is udd. In beta decay, a down quark inside a neutron converts into an up quark by emitting a virtual $W^-$ boson, which promptly decays into an electron and an antineutrino: $n \\to p + e^- + \\bar{\\nu}_e$. This single process — a quark changing flavour through the weak force — is how radioactive nuclei emit beta particles, and it is the decay that makes carbon dating possible.",
+      },
+      {
+        heading: "Why it matters",
+        body: "The Standard Model has passed every experimental test for half a century, predicting particle properties to one part in a billion. It explains why atoms are stable, why the Sun shines (via weak interactions in fusion), and what the Higgs boson is. But it is not the final word: it says nothing about gravity, dark matter, or the cosmic excess of matter over antimatter, and neutrinos' tiny masses were a surprise. These gaps are the frontier — and the search for physics beyond the Standard Model is what the largest experiments on Earth are built for.",
+      },
+    ],
+    takeaways: [
+      "Matter is built from six quarks and six leptons arranged in three generations.",
+      "Forces are exchanged messenger particles: photons, gluons, and W and Z bosons.",
+      String.raw`The symmetry group $SU(3) \times SU(2) \times U(1)$ organizes the forces; the Higgs field gives particles mass.`,
+      "The Standard Model is supremely precise but incomplete — no gravity, dark matter, or matter–antimatter asymmetry.",
+    ],
+  },
+  {
+    slug: "band-theory-of-solids",
+    title: "Band Theory of Solids",
+    topic: "solidstate" as const,
+    difficulty: "advanced" as const,
+    readingMinutes: 9,
+    summary:
+      "When atoms pack into a crystal, their discrete energy levels smear into bands, and the gaps between bands decide whether a solid is a metal, a semiconductor, or an insulator — and therefore whether your phone exists.",
+    keyFormula: String.raw`E(k) = \epsilon_0 - 2t \cos(ka)`,
+    tags: ["semiconductors", "electrons", "crystals"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "A single atom has sharp, private energy levels. Bring two atoms close and their levels split — one slightly higher, one slightly lower — because the electrons now share two nuclei. Pack billions of atoms into a crystal and each level splits into billions of closely spaced levels that blend into a continuous band. Between bands lie gaps: energies no electron may take. Whether a solid conducts depends entirely on whether its bands are full, empty, or half-filled.",
+      },
+      {
+        heading: "The mathematics",
+        body: "In the simplest model (tight-binding), an electron hopping between neighbouring sites acquires an energy that depends on its wave number $k$: $E(k) = \\epsilon_0 - 2t\\cos(ka)$, where $t$ measures the hopping strength and $a$ the lattice spacing. The band spans from $\\epsilon_0 - 2t$ to $\\epsilon_0 + 2t$; the gap to the next band is set by the atomic levels and the lattice. Electrons fill states two per site (spin up and down). A metal has a partially filled band, so electrons can hop to slightly higher states under an electric field; an insulator has a completely full band separated by a large gap; a semiconductor has a full valence band with a small gap — a few electron-volts or less — that thermal energy can bridge.",
+      },
+      {
+        heading: "Worked example",
+        body: "Copper is a metal: its outermost band is only half full, so a tiny electric field nudges electrons into empty states and current flows easily — the reason copper wires conduct. Silicon is a semiconductor: its valence band is full, but the gap of about $1.1\\ \\text{eV}$ is small enough that at room temperature a few electrons are thermally excited into the conduction band, giving a small but real conductivity. Add a sprinkle of phosphorus (one extra electron per atom) and silicon becomes n-type, conducting far better — the controlled doping at the heart of every transistor.",
+      },
+      {
+        heading: "Why it matters",
+        body: "Band theory explains the entire electronics age: semiconductors' conductivity can be switched by doping, light, voltage, and heat, which is how transistors amplify and compute, how LEDs emit light (electrons falling across the gap release a photon of that gap's energy), and how solar cells collect it. From the silicon in your phone to the gallium nitride in laser pointers, band structure is the design sheet of solid-state technology.",
+      },
+    ],
+    takeaways: [
+      "Atomic levels split into bands when atoms form a crystal; gaps separate the bands.",
+      "A metal has a partially filled band; an insulator a full band with a large gap; a semiconductor a small gap.",
+      String.raw`Tight binding: $E(k) = \epsilon_0 - 2t \cos(ka)$ — energy depends on the electron's wave number.`,
+      "Doping semiconductors (extra or missing electrons) is the basis of transistors, LEDs, and solar cells.",
+    ],
+  },
+  {
+    slug: "hubbles-law",
+    title: "Hubble's Law and the Expanding Universe",
+    topic: "cosmology" as const,
+    difficulty: "intro" as const,
+    readingMinutes: 7,
+    summary:
+      "Every distant galaxy is rushing away from us, and the farther it is, the faster it recedes. Hubble's law turns a handful of redshifts into the expansion of the universe — and a timeline back to the Big Bang.",
+    keyFormula: String.raw`v = H_0 d`,
+    tags: ["cosmology", "big bang", "redshift"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "Look at any distant galaxy and its light is shifted toward the red — the galaxy is moving away. Measure a hundred galaxies and a pattern emerges: twice as far away means twice as fast. This is not a burst of galaxies fleeing from us in particular; every observer in the universe would see the same thing, because space itself is stretching. It is the signature of an expanding universe — raisins in a rising loaf of bread: each raisin sees every other raisin receding, with speed proportional to distance.",
+      },
+      {
+        heading: "The mathematics",
+        body: "Hubble's law states the recession speed is proportional to distance: $v = H_0 d$, with $H_0$ the Hubble constant, about $70\\ \\text{km/s}$ per megaparsec ($1\\ \\text{Mpc} \\approx 3.26\\ \\text{million light-years}$). The speed is measured from the redshift $z = \\Delta\\lambda/\\lambda$, with $v \\approx cz$ for nearby galaxies. Inverting the law gives a rough age for the universe: a galaxy at distance $d$ moving at $v$ took about $d/v = 1/H_0$ to get there, which works out to roughly $13.8$ billion years — the current best estimate.",
+      },
+      {
+        heading: "Worked example",
+        body: "A galaxy sits at $100\\ \\text{Mpc}$. With $H_0 = 70\\ \\text{km/s/Mpc}$, it recedes at $v = 70 \\times 100 = 7000\\ \\text{km/s}$, about $2.3$ percent of the speed of light ($z \\approx 0.023$). The galaxy's spectrum arrives stretched by that fraction, and the age estimate from $1/H_0$ is about $14$ billion years — consistent, after refined measurements, with the age of the oldest stars and of the cosmic microwave background.",
+      },
+      {
+        heading: "Why it matters",
+        body: "Hubble's law is the observational cornerstone of modern cosmology. Run the expansion backward and the universe was once a single, enormously hot and dense point — the Big Bang, whose afterglow we still see as the cosmic microwave background. In 1998 astronomers found the expansion is accelerating, implying a mysterious dark energy that now dominates the universe's energy budget. Hubble's law still organizes all of it: one equation, written a century ago, that lets us weigh the universe and read its history.",
+      },
+    ],
+    takeaways: [
+      "Distant galaxies recede with speed proportional to distance: $v = H_0 d$.",
+      "Redshift measures recession speed: $z \\approx v/c$ for nearby galaxies.",
+      String.raw`Running the expansion backward yields a universe about $1/H_0 \approx 13.8$ billion years old.`,
+      "The expansion is accelerating — the signature of dark energy.",
+    ],
+  },
+  {
+    slug: "lagrangian-mechanics",
+    title: "The Lagrangian Formulation of Mechanics",
+    topic: "classical" as const,
+    difficulty: "advanced" as const,
+    readingMinutes: 9,
+    summary:
+      "Newton tracks forces; the Lagrangian formulation tracks energy, and nature takes the path of least action. This reformulation of classical mechanics is the gateway to everything modern — from quantum fields to spacecraft trajectories.",
+    keyFormula: String.raw`L = T - V, \qquad \frac{d}{dt}\frac{\partial L}{\partial \dot{q}} - \frac{\partial L}{\partial q} = 0`,
+    tags: ["least action", "euler-lagrange", "noether"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "Newton's laws tell a particle which way to accelerate at every instant. The Lagrangian picture asks a different question: of all the paths a particle could take between two points, which one does it actually choose? The answer — the principle of least action — is that it takes the path for which the action $S = \\int L\\, dt$ is stationary (usually a minimum), where the Lagrangian is kinetic minus potential energy, $L = T - V$. Instead of tracking forces, you track energy, and the path falls out of a single variational problem.",
+      },
+      {
+        heading: "The mathematics",
+        body: "For generalized coordinates $q$ (any convenient set — angles, distances, even field values), the Lagrangian is $L = T - V$, and the actual motion satisfies the Euler–Lagrange equation $\\frac{d}{dt}\\frac{\\partial L}{\\partial \\dot{q}} - \\frac{\\partial L}{\\partial q} = 0$ — one equation per coordinate, derived without drawing a single free-body diagram, and constraint forces vanish automatically because you choose coordinates that respect the constraints. A profound bonus is Noether's theorem: every continuous symmetry of the Lagrangian implies a conserved quantity. Time translation symmetry gives energy conservation; space translation gives momentum; rotation gives angular momentum.",
+      },
+      {
+        heading: "Worked example",
+        body: "A simple pendulum of mass $m$ and length $\\ell$ is described by the single coordinate $\\theta$. The kinetic energy is $T = \\tfrac{1}{2}m\\ell^2\\dot{\\theta}^2$ and the potential is $V = mg\\ell(1 - \\cos\\theta)$, so $L = \\tfrac{1}{2}m\\ell^2\\dot{\\theta}^2 - mg\\ell(1 - \\cos\\theta)$. The Euler–Lagrange equation gives $\\ddot{\\theta} + \\frac{g}{\\ell}\\sin\\theta = 0$ — the exact pendulum equation, obtained without computing the string tension or resolving forces. For small angles, $\\sin\\theta \\approx \\theta$ recovers simple harmonic motion with $\\omega = \\sqrt{g/\\ell}$.",
+      },
+      {
+        heading: "Why it matters",
+        body: "The Lagrangian formulation is not a stylistic flourish; it is the language of all modern physics. Quantum mechanics and quantum field theory are built from Lagrangians, general relativity is derived from an action principle, and the Standard Model is literally a Lagrangian. In engineering, the same machinery designs spacecraft trajectories and robot motions. If you master Euler–Lagrange equations in classical mechanics, you have already learned the grammar of the entire theoretical physics curriculum.",
+      },
+    ],
+    takeaways: [
+      "Nature chooses the path of stationary action; the Lagrangian is $L = T - V$.",
+      String.raw`The Euler–Lagrange equation $\frac{d}{dt}\frac{\partial L}{\partial \dot{q}} - \frac{\partial L}{\partial q} = 0$ gives the equations of motion for each coordinate.`,
+      "Noether's theorem: symmetries of the Lagrangian imply conserved quantities.",
+      "The Lagrangian formulation is the foundation of quantum theory, relativity, and modern engineering.",
+    ],
+  },
+  {
+    slug: "fourier-series-and-transforms",
+    title: "Fourier Series and Transforms",
+    topic: "mathematical" as const,
+    difficulty: "intermediate" as const,
+    readingMinutes: 9,
+    summary:
+      "Any repeating wave — a square wave, a musical note, a heartbeat — is secretly a sum of pure sine waves. Fourier analysis is how physics decomposes complicated signals into simple harmonics, and it sits beneath sound, images, quantum mechanics, and the heat equation.",
+    keyFormula: String.raw`f(x) = \frac{a_0}{2} + \sum_{n=1}^{\infty} \left(a_n \cos\frac{n\pi x}{L} + b_n \sin\frac{n\pi x}{L}\right)`,
+    tags: ["harmonics", "signal analysis", "quantum"],
+    content: [
+      {
+        heading: "The intuition",
+        body: "A musical chord is several pure notes sounding at once, and your ear effortlessly separates them. Fourier's claim is that the reverse is always true: any periodic shape — even a harsh square wave — can be built by adding together the right pure sine and cosine waves with the right sizes. It is like saying every colour on a screen is a mix of three primaries, except the palette has infinitely many hues. The set of sines and cosines acts as a basis in which complicated waveforms become simple lists of amplitudes.",
+      },
+      {
+        heading: "The mathematics",
+        body: "A function with period $2L$ is written $f(x) = \\frac{a_0}{2} + \\sum_{n=1}^{\\infty}\\left(a_n \\cos\\frac{n\\pi x}{L} + b_n \\sin\\frac{n\\pi x}{L}\\right)$. The coefficients are extracted by integrating against each basis function, which works because sines and cosines are orthogonal: $a_n = \\frac{1}{L}\\int_{-L}^{L} f(x)\\cos\\frac{n\\pi x}{L}\\,dx$, and similarly for $b_n$. For non-periodic functions the sum becomes the Fourier transform $\\hat{f}(k) = \\int_{-\\infty}^{\\infty} f(x)\\,e^{-ikx}\\,dx$, trading a discrete list of harmonics for a continuous spectrum.",
+      },
+      {
+        heading: "Worked example",
+        body: "A square wave of amplitude 1 contains only odd harmonics: $f(x) = \\frac{4}{\\pi}\\left(\\sin x + \\frac{1}{3}\\sin 3x + \\frac{1}{5}\\sin 5x + \\cdots\\right)$. Add just the first term and you get a gentle sinusoid; add the third and the flanks start to flatten; carry the series to the 21st harmonic and the wave is recognizably square, with small overshoot spikes at the corners (the Gibbs phenomenon) that never vanish entirely. This is why a clipped amplifier signal sounds harsh — it injects many extra harmonics.",
+      },
+      {
+        heading: "Why it matters",
+        body: "Fourier analysis is the workhorse of science and engineering. MP3 and JPEG compression keep only the largest Fourier coefficients; the heat equation and wave equation are solved by decomposing initial conditions into harmonics that each evolve simply; in quantum mechanics, position and momentum are Fourier partners — the real origin of the uncertainty principle, since a sharply localised wave needs a huge spread of momenta. Wherever there is a wave, there is a Fourier series hiding underneath.",
+      },
+    ],
+    takeaways: [
+      "Any periodic function is a sum of sine and cosine harmonics with the right amplitudes.",
+      "Orthogonality lets you extract each coefficient with a single integral.",
+      "The Fourier transform generalises the idea to non-periodic signals.",
+      "Fourier pairs (position and momentum) underlie the uncertainty principle and all wave physics.",
+    ],
+  },
 ] as const;
 
 export type SeedConcept = (typeof SEED_CONCEPTS)[number];
