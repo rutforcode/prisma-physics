@@ -121,7 +121,7 @@ export function MathKeyboard({
   onClose: () => void;
 }) {
   return (
-    <div className="glass-strong mt-3 rounded-2xl p-3">
+    <div>
       <div className="flex items-center justify-between px-1 pb-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
           Math keyboard

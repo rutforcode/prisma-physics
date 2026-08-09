@@ -8,6 +8,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { MentionText } from "@/lib/mentions";
@@ -284,14 +289,6 @@ export function PostComposer() {
         )}
       </div>
 
-      {keyboardOpen && (
-        <MathKeyboard
-          onInsert={insertTex}
-          onBackspace={handleMathBackspace}
-          onClose={() => setKeyboardOpen(false)}
-        />
-      )}
-
       {hasMath && (
         <div className="mt-3 rounded-xl border border-primary/15 bg-gradient-to-br from-sky-400/[0.07] via-white/40 to-indigo-400/[0.07] p-4">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -331,19 +328,34 @@ export function PostComposer() {
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={cn(
-              "glass-chip border-0",
-              keyboardOpen && "bg-primary/10 text-primary",
-            )}
-            onClick={() => setKeyboardOpen((open) => !open)}
-          >
-            <Sigma className="size-4" />
-            Insert math
-          </Button>
+          <Popover open={keyboardOpen} onOpenChange={setKeyboardOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "glass-chip border-0",
+                  keyboardOpen && "bg-primary/10 text-primary",
+                )}
+              >
+                <Sigma className="size-4" />
+                Insert math
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              side="top"
+              sideOffset={8}
+              className="w-[21rem] max-w-[calc(100vw-2rem)] rounded-2xl p-3 shadow-xl"
+            >
+              <MathKeyboard
+                onInsert={insertTex}
+                onBackspace={handleMathBackspace}
+                onClose={() => setKeyboardOpen(false)}
+              />
+            </PopoverContent>
+          </Popover>
 
           <input
             ref={fileInputRef}
