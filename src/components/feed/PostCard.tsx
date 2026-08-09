@@ -10,11 +10,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { MixedBody } from "@/components/feed/MixedBody";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { topicMeta } from "@/lib/topic-meta";
-import { MentionText } from "@/lib/mentions";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
@@ -29,7 +29,8 @@ export interface MentionRef {
 export interface PostItem extends Doc<"posts"> {
   authorName: string;
   authorImage: string | null;
-  imageUrl: string | null;
+  images: Id<"_storage">[];
+  imageUrls: (string | null)[];
   mentionedUsers: MentionRef[];
 }
 
@@ -164,17 +165,12 @@ export function PostCard({
       <h3 className="font-display mt-4 text-xl font-semibold leading-snug tracking-tight">
         {post.title}
       </h3>
-      <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85">
-        <MentionText text={post.body} mentionMap={mentionMap} />
-      </p>
-
-      {post.imageUrl && (
-        <img
-          src={post.imageUrl}
-          alt={`Attachment for ${post.title}`}
-          className="mt-4 max-h-96 w-full rounded-2xl object-cover ring-1 ring-white/70"
-        />
-      )}
+      <MixedBody
+        text={post.body}
+        imageUrls={post.imageUrls}
+        mentionMap={mentionMap}
+        className="mt-2 text-[15px] leading-relaxed text-foreground/85"
+      />
 
       {/* Actions */}
       <div className="mt-5 flex items-center border-t border-white/60 pt-4">

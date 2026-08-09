@@ -1,11 +1,14 @@
+import { stripImageMarkers } from "./inline-images";
+
 /**
- * Shared helpers for feed-post limits.
+ * Shared helpers for post limits.
  *
  * "Formulas are not counted as characters": LaTeX math segments wrapped in
- * $…$, $$…$$, \(…\) or \[…\] are stripped before counting, so students can
- * write long derivations without eating into the character budget.
+ * $…$, $$…$$, \(…\) or \[…\] are stripped before counting, and inline image
+ * markers ([img:N]) are stripped too, so neither eats into the character
+ * budget.
  *
- * Imported by both the frontend composer (live counter) and the backend
+ * Imported by both the frontend composers (live counter) and the backend
  * (enforcement) — keep this file dependency-free so the Convex bundler
  * accepts it.
  */
@@ -42,5 +45,5 @@ export function countFormulas(text: string): number {
 
 /** Character count excluding formulas. */
 export function countNonFormulaChars(text: string): number {
-  return stripMath(text).length;
+  return stripMath(stripImageMarkers(text)).length;
 }

@@ -1,6 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
+import {
+  MAX_BODY_CHARS,
+  MAX_IMAGES,
+  countNonFormulaChars,
+} from "../lib/math-count";
 import { topicValidator } from "./schema";
 import { mutation, query, QueryCtx } from "./_generated/server";
 
@@ -68,13 +73,21 @@ export const generateUploadUrl = mutation({
 /**
  * Attach author info, image URLs, and resolved mention references to posts.
  */
+/** The storage ids attached to a post, incl. legacy single-image field. */
+function postImages(post: Doc<"posts">) {
+  const legacy = (post as { imageStorageId?: Id<"_storage"> }).imageStorageId;
+  return [...(post.images ?? []), ...(legacy ? [legacy] : [])];
+}
+
 async function hydratePosts(ctx: QueryCtx, posts: Doc<"posts">[]) {
   const result = [];
   for (const post of posts) {
     const author = await ctx.db.get(post.authorId);
-    const imageUrl = post.imageStorageId
-      ? await ctx.storage.getUrl(post.imageStorageId)
-      : null;
+    const images = postImages(post);
+    const imageUrls: (string | null)[] = [];
+    for (const id of images) {
+      imageUrls.push(await ctx.storage.getUrl(id));
+    }
 
     const mentionedUsers: { userId: Id<"users">; name: string }[] = [];
     for (const id of post.mentionedUserIds ?? []) {
@@ -91,7 +104,8 @@ async function hydratePosts(ctx: QueryCtx, posts: Doc<"posts">[]) {
       ...post,
       authorName: author?.name ?? author?.email?.split("@")[0] ?? "Student",
       authorImage: author?.image ?? null,
-      imageUrl,
+      images,
+      imageUrls,
       mentionedUsers,
     });
   }
@@ -200,13 +214,13 @@ export const mentionsOf = query({
   },
 });
 
-/** Create a new community post (title, body, optional topic + image). */
+/** Create a new community post (title, body, optional topic + images). */
 export const create = mutation({
   args: {
     title: v.string(),
     body: v.string(),
     topic: v.optional(topicValidator),
-    imageStorageId: v.optional(v.id("_storage")),
+    images: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -221,12 +235,21 @@ export const create = mutation({
     if (title.length > 120) {
       throw new Error("Keep the title under 120 characters.");
     }
+    const images = args.images ?? [];
+    if (images.length > MAX_IMAGES) {
+      throw new Error(`A post can have at most ${MAX_IMAGES} images.`);
+    }
+    if (countNonFormulaChars(body) > MAX_BODY_CHARS) {
+      throw new Error(
+        `Keep the post under ${MAX_BODY_CHARS.toLocaleString()} characters (formulas don't count).`,
+      );
+    }
     const postId = await ctx.db.insert("posts", {
       authorId: userId,
       title,
       body,
       topic: args.topic || undefined,
-      imageStorageId: args.imageStorageId,
+      images: images.length > 0 ? images : undefined,
       likedBy: [],
     });
 
@@ -293,8 +316,12 @@ export const remove = mutation({
     if (post.authorId !== userId && !(await isAdminUser(ctx))) {
       throw new Error("You can only delete your own posts.");
     }
-    if (post.imageStorageId) {
-      await ctx.storage.delete(post.imageStorageId);
+    for (const id of postImages(post)) {
+      try {
+        await ctx.storage.delete(id);
+      } catch {
+        // Already gone — nothing to do.
+      }
     }
     await ctx.db.delete(args.postId);
   },

@@ -1,6 +1,6 @@
 import type { FeedPostItem } from "@/components/feed/FeedPostCard";
+import { MixedBody } from "@/components/feed/MixedBody";
 import { MathKeyboard } from "@/components/MathKeyboard";
-import { MathText } from "@/components/MathJax";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -32,6 +32,7 @@ import {
   Pencil,
   Send,
   Sigma,
+  TextCursorInput,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -121,6 +122,29 @@ export function FeedPostComposer({
     requestAnimationFrame(() => {
       el.focus();
       const pos = start + caretOffset;
+      el.setSelectionRange(pos, pos);
+      setCaretPos(pos);
+    });
+  };
+
+  // Images shown in the live preview: existing + newly attached.
+  const previewImages = useMemo(
+    () => [...existingImages.map((img) => img.url), ...filePreviews],
+    [existingImages, filePreviews],
+  );
+
+  /** Embed an image at the caret with an [img:N] marker. */
+  const insertImageMarker = (idx: number) => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? caretPos;
+    const end = el.selectionEnd ?? start;
+    const marker = `[img:${idx}]`;
+    const next = body.slice(0, start) + marker + body.slice(end);
+    setBody(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + marker.length;
       el.setSelectionRange(pos, pos);
       setCaretPos(pos);
     });
@@ -305,7 +329,7 @@ export function FeedPostComposer({
         )}
       </div>
 
-      {hasMath && (
+      {(hasMath || imageCount > 0) && (
         <div className="mt-3 rounded-xl border border-primary/15 bg-gradient-to-br from-sky-400/[0.07] via-white/40 to-indigo-400/[0.07] p-4">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
             <span>Live preview</span>
@@ -316,9 +340,11 @@ export function FeedPostComposer({
                 {title}
               </h4>
             )}
-            <MathText className="mt-1 block whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
-              {body}
-            </MathText>
+            <MixedBody
+              text={body}
+              imageUrls={previewImages}
+              className="mt-1 text-sm leading-relaxed text-foreground/85"
+            />
           </div>
         </div>
       )}
@@ -347,6 +373,17 @@ export function FeedPostComposer({
               >
                 <X className="size-3.5" />
               </button>
+              <button
+                type="button"
+                onClick={() =>
+                  insertImageMarker(existingImages.findIndex((x) => x.id === img.id))
+                }
+                className="absolute bottom-1.5 left-1.5 flex h-6 items-center gap-1 rounded-full bg-white/85 px-2 text-[11px] font-medium text-foreground opacity-0 shadow backdrop-blur transition-opacity group-hover:opacity-100"
+                title="Place this image in the text at the cursor"
+              >
+                <TextCursorInput className="size-3.5" />
+                Inline
+              </button>
             </div>
           ))}
           {files.map((f, i) => (
@@ -366,6 +403,15 @@ export function FeedPostComposer({
                 aria-label="Remove image"
               >
                 <X className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertImageMarker(existingImages.length + i)}
+                className="absolute bottom-1.5 left-1.5 flex h-6 items-center gap-1 rounded-full bg-white/85 px-2 text-[11px] font-medium text-foreground opacity-0 shadow backdrop-blur transition-opacity group-hover:opacity-100"
+                title="Place this image in the text at the cursor"
+              >
+                <TextCursorInput className="size-3.5" />
+                Inline
               </button>
             </div>
           ))}

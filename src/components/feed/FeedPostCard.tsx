@@ -10,7 +10,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { MathText } from "@/components/MathJax";
+import { MixedBody } from "@/components/feed/MixedBody";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
@@ -134,29 +134,11 @@ export function FeedPostCard({
       <h3 className="font-display mt-4 text-xl font-semibold leading-snug tracking-tight">
         {post.title}
       </h3>
-      <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85">
-        <MathText>{post.body}</MathText>
-      </p>
-
-      {post.imageUrls.length > 0 && (
-        <div
-          className={cn(
-            "mt-4 grid gap-3",
-            post.imageUrls.length === 1
-              ? "grid-cols-1"
-              : "grid-cols-2 sm:grid-cols-3",
-          )}
-        >
-          {post.imageUrls.map((url, i) => (
-            <img
-              key={i}
-              src={url ?? undefined}
-              alt={`Attachment ${i + 1} for ${post.title}`}
-              className="max-h-96 w-full rounded-2xl object-cover ring-1 ring-white/70"
-            />
-          ))}
-        </div>
-      )}
+      <MixedBody
+        text={post.body}
+        imageUrls={post.imageUrls}
+        className="mt-2 text-[15px] leading-relaxed text-foreground/85"
+      />
     </article>
   );
 }

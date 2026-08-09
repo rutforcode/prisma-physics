@@ -44,7 +44,9 @@ async function hydrate(
   const result = [];
   for (const post of posts) {
     const author = post.authorId ? await ctx.db.get(post.authorId) : null;
-    const images = post.images ?? [];
+    // Include any legacy single-image field from before the array migration.
+    const legacy = (post as { imageStorageId?: Id<"_storage"> }).imageStorageId;
+    const images = [...(post.images ?? []), ...(legacy ? [legacy] : [])];
     const imageUrls: (string | null)[] = [];
     for (const id of images) {
       imageUrls.push(await ctx.storage.getUrl(id));

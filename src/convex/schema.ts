@@ -87,7 +87,7 @@ const schema = defineSchema(
       title: v.string(),
       body: v.string(),
       topic: v.optional(topicValidator),
-      imageStorageId: v.optional(v.id("_storage")),
+      images: v.optional(v.array(v.id("_storage"))), // up to MAX_IMAGES attachments
       likedBy: v.array(v.id("users")),
       mentionedUserIds: v.optional(v.array(v.id("users"))),
       promotedAt: v.optional(v.number()),

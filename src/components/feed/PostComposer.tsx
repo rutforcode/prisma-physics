@@ -1,5 +1,5 @@
 import { MathKeyboard } from "@/components/MathKeyboard";
-import { MathText } from "@/components/MathJax";
+import { MixedBody } from "@/components/feed/MixedBody";
 import {
   Select,
   SelectContent,
@@ -15,12 +15,26 @@ import {
 } from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { MentionText } from "@/lib/mentions";
+import {
+  MAX_BODY_CHARS,
+  MAX_IMAGES,
+  countFormulas,
+  countNonFormulaChars,
+} from "@/lib/math-count";
 import { cn } from "@/lib/utils";
 import { TOPICS, type TopicId } from "@/lib/topic-meta";
 import { useMutation, useQuery } from "convex/react";
-import { AtSign, Eye, ImagePlus, Loader2, Send, Sigma, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  AtSign,
+  Eye,
+  ImagePlus,
+  Loader2,
+  Send,
+  Sigma,
+  TextCursorInput,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export function PostComposer() {
   const createPost = useMutation(api.posts.create);
@@ -29,8 +43,8 @@ export function PostComposer() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState<TopicId | undefined>(undefined);
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,29 +60,44 @@ export function PostComposer() {
   // On-screen math keyboard visibility
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  // Object URL lifecycle for the image preview
+  // Object URL lifecycle for image previews
   useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setFilePreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
 
-  const pickFile = (f: File | undefined) => {
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      setError("Please choose an image file (PNG, JPG, GIF…).");
-      return;
-    }
+  // Live character budget — formulas and [img:N] markers don't count.
+  const { chars, formulas } = useMemo(
+    () => ({
+      chars: countNonFormulaChars(body),
+      formulas: countFormulas(body),
+    }),
+    [body],
+  );
+  const overLimit = chars > MAX_BODY_CHARS;
+  const nearLimit = chars >= MAX_BODY_CHARS * 0.9;
+  const imageCount = files.length;
+
+  const handleFilesChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosen = Array.from(e.target.files ?? []);
     setError(null);
-    setFile(f);
+    const valid = chosen.filter((f) => f.type.startsWith("image/"));
+    if (valid.length < chosen.length) {
+      setError("Please choose image files (PNG, JPG, GIF…).");
+    }
+    const room = MAX_IMAGES - imageCount;
+    setFiles((prev) => [...prev, ...valid].slice(0, room));
+    if (e.target) e.target.value = "";
   };
 
   const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
+    // Enforce the budget: block edits that push the (non-formula) count
+    // over the limit, but always allow deletions to make room.
+    if (countNonFormulaChars(value) > MAX_BODY_CHARS && value.length > body.length) {
+      return;
+    }
     setBody(value);
     const caret = e.target.selectionStart ?? value.length;
     setCaretPos(caret);
@@ -132,6 +161,24 @@ export function PostComposer() {
     });
   };
 
+  /** Embed an image at the caret with an [img:N] marker. */
+  const insertImageMarker = (idx: number) => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? caretPos;
+    const end = el.selectionEnd ?? start;
+    const marker = `[img:${idx}]`;
+    const next = body.slice(0, start) + marker + body.slice(end);
+    setBody(next);
+    setMentionOpen(false);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + marker.length;
+      el.setSelectionRange(pos, pos);
+      setCaretPos(pos);
+    });
+  };
+
   const handleMathBackspace = () => {
     const el = bodyRef.current;
     if (!el) return;
@@ -168,37 +215,40 @@ export function PostComposer() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!title.trim() || !body.trim() || isSubmitting) return;
+    if (!title.trim() || !body.trim() || isSubmitting || overLimit) return;
 
     setIsSubmitting(true);
     setError(null);
     try {
-      let imageStorageId: Id<"_storage"> | undefined;
-      if (file) {
+      // Upload any newly attached images.
+      const storageIds: Id<"_storage">[] = [];
+      for (const f of files) {
         const uploadUrl = await generateUploadUrl();
         const upload = await fetch(uploadUrl, {
           method: "POST",
-          headers: { "Content-Type": file.type },
-          body: file,
+          headers: { "Content-Type": f.type },
+          body: f,
         });
         if (!upload.ok) {
           throw new Error("Upload failed — please try again.");
         }
-        const { storageId } = (await upload.json()) as { storageId: Id<"_storage"> };
-        imageStorageId = storageId;
+        const { storageId } = (await upload.json()) as {
+          storageId: Id<"_storage">;
+        };
+        storageIds.push(storageId);
       }
 
       await createPost({
         title: title.trim(),
         body: body.trim(),
         topic,
-        imageStorageId,
+        images: storageIds,
       });
 
       setTitle("");
       setBody("");
       setTopic(undefined);
-      setFile(null);
+      setFiles([]);
       setMentionOpen(false);
       setMentionQuery("");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -228,7 +278,31 @@ export function PostComposer() {
         className="mt-4 h-11 w-full rounded-xl border border-white/70 bg-white/50 px-4 text-sm shadow-inner outline-none transition-all placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-[3px] focus:ring-primary/15"
       />
 
-      <div className="relative mt-3">
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Body
+        </span>
+        <span
+          className={cn(
+            "text-xs tabular-nums",
+            overLimit
+              ? "font-semibold text-destructive"
+              : nearLimit
+                ? "text-amber-600"
+                : "text-muted-foreground",
+          )}
+        >
+          {chars.toLocaleString()} / {MAX_BODY_CHARS.toLocaleString()}
+          {formulas > 0 && (
+            <span className="text-muted-foreground">
+              {" "}
+              · {formulas} formula{formulas === 1 ? "" : "s"} not counted
+            </span>
+          )}
+        </span>
+      </div>
+
+      <div className="relative mt-1.5">
         <textarea
           ref={bodyRef}
           value={body}
@@ -289,7 +363,7 @@ export function PostComposer() {
         )}
       </div>
 
-      {hasMath && (
+      {(hasMath || imageCount > 0) && (
         <div className="mt-3 rounded-xl border border-primary/15 bg-gradient-to-br from-sky-400/[0.07] via-white/40 to-indigo-400/[0.07] p-4">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
             <Eye className="size-3.5" />
@@ -301,28 +375,46 @@ export function PostComposer() {
                 {title}
               </h4>
             )}
-            <MathText className="mt-1 block whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
-              <MentionText text={body} />
-            </MathText>
+            <MixedBody
+              text={body}
+              imageUrls={filePreviews}
+              className="mt-1 text-sm leading-relaxed text-foreground/85"
+            />
           </div>
         </div>
       )}
 
-      {previewUrl && (
-        <div className="relative mt-3 inline-block">
-          <img
-            src={previewUrl}
-            alt="Post attachment preview"
-            className="h-44 w-full rounded-xl object-cover sm:w-72"
-          />
-          <button
-            type="button"
-            onClick={() => setFile(null)}
-            className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-white/80 text-foreground shadow backdrop-blur transition-colors hover:bg-white"
-            aria-label="Remove image"
-          >
-            <X className="size-4" />
-          </button>
+      {imageCount > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+          {files.map((f, i) => (
+            <div
+              key={i}
+              className="group relative aspect-video overflow-hidden rounded-xl ring-1 ring-white/70"
+            >
+              <img
+                src={filePreviews[i]}
+                alt={f.name}
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-white/80 text-foreground shadow backdrop-blur transition-colors hover:bg-white"
+                aria-label="Remove image"
+              >
+                <X className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertImageMarker(i)}
+                className="absolute bottom-1.5 left-1.5 flex h-6 items-center gap-1 rounded-full bg-white/85 px-2 text-[11px] font-medium text-foreground opacity-0 shadow backdrop-blur transition-opacity group-hover:opacity-100"
+                title="Place this image in the text at the cursor"
+              >
+                <TextCursorInput className="size-3.5" />
+                Inline
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -361,8 +453,9 @@ export function PostComposer() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
-            onChange={(e) => pickFile(e.target.files?.[0])}
+            onChange={handleFilesChosen}
             id="post-image-input"
           />
           <Button
@@ -371,10 +464,16 @@ export function PostComposer() {
             size="sm"
             className="glass-chip border-0"
             onClick={() => fileInputRef.current?.click()}
+            disabled={imageCount >= MAX_IMAGES}
           >
             <ImagePlus className="size-4" />
-            {file ? "Change image" : "Attach image"}
+            Attach images
           </Button>
+          {imageCount > 0 && (
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {imageCount}/{MAX_IMAGES} images
+            </span>
+          )}
 
           <Select
             value={topic}
