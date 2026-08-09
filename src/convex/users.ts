@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { query, QueryCtx } from "./_generated/server";
+import { mutation, query, QueryCtx } from "./_generated/server";
 
 /**
  * Get the current signed in user. Returns null if the user is not signed in.
@@ -17,6 +17,39 @@ export const currentUser = query({
     }
 
     return user;
+  },
+});
+
+/**
+ * Generate a signed upload URL for a profile photo (Convex storage).
+ */
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("You must be signed in to upload a photo.");
+    }
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
+ * Set the current user's profile photo from an uploaded storage file.
+ */
+export const updateProfileImage = mutation({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, { storageId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("You must be signed in.");
+    }
+    const url = await ctx.storage.getUrl(storageId);
+    if (url === null) {
+      throw new Error("Upload not found — please try again.");
+    }
+    await ctx.db.patch(userId, { image: url });
+    return url;
   },
 });
 

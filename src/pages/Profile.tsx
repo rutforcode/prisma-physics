@@ -7,19 +7,111 @@ import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
   AtSign,
   CalendarDays,
+  Camera,
   FileText,
   Heart,
+  Loader2,
   MessagesSquare,
   PencilLine,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+
+function AvatarEditor({
+  image,
+  initials,
+}: {
+  image: string | null;
+  initials: string;
+}) {
+  const generateUploadUrl = useMutation(api.users.generateUploadUrl);
+  const updateProfileImage = useMutation(api.users.updateProfileImage);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file (PNG, JPG…).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Keep your photo under 5 MB.");
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const upload = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!upload.ok) throw new Error("Upload failed — please try again.");
+      const { storageId } = (await upload.json()) as { storageId: Id<"_storage"> };
+      await updateProfileImage({ storageId });
+    } catch (err) {
+      console.error("Photo upload error:", err);
+      setError(
+        err instanceof Error ? err.message : "Could not update your photo.",
+      );
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        aria-label="Change profile photo"
+        className="group relative block rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+      >
+        {image ? (
+          <img
+            src={image}
+            alt="Profile photo"
+            className="size-20 rounded-full object-cover shadow-lg ring-4 ring-white/80"
+          />
+        ) : (
+          <span className="flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-sky-400/40 to-indigo-500/30 text-2xl font-bold text-primary shadow-lg ring-4 ring-white/80">
+            {initials}
+          </span>
+        )}
+        <span className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/40 text-white opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-disabled:opacity-100">
+          {uploading ? (
+            <Loader2 className="size-6 animate-spin" />
+          ) : (
+            <Camera className="size-6" />
+          )}
+        </span>
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void handleFile(e.target.files?.[0])}
+      />
+      {error && (
+        <p className="absolute left-1/2 top-full mt-2 w-max max-w-[13rem] -translate-x-1/2 rounded-lg bg-white/90 px-2 py-1 text-center text-xs font-medium text-destructive shadow-md backdrop-blur">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function ProfileSkeleton() {
   return (
@@ -118,14 +210,16 @@ export default function Profile() {
               </>
             ) : (
               <>
-                {image ? (
+                {isSelf ? (
+                  <AvatarEditor image={image} initials={initials} />
+                ) : image ? (
                   <img
                     src={image}
                     alt={name}
-                    className="size-20 shrink-0 rounded-full object-cover ring-4 ring-white/80 shadow-lg"
+                    className="size-20 shrink-0 rounded-full object-cover shadow-lg ring-4 ring-white/80"
                   />
                 ) : (
-                  <span className="flex size-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-400/40 to-indigo-500/30 text-2xl font-bold text-primary ring-4 ring-white/80 shadow-lg">
+                  <span className="flex size-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-400/40 to-indigo-500/30 text-2xl font-bold text-primary shadow-lg ring-4 ring-white/80">
                     {initials}
                   </span>
                 )}
