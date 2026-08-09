@@ -72,6 +72,35 @@ export const getById = query({
 });
 
 /**
+ * List every user with their feed-posting (curator) status — admins only.
+ * Powers the admin "post curators" manager on the study feed.
+ */
+export const all = query({
+  args: {},
+  handler: async (ctx) => {
+    const me = await getAuthUserId(ctx);
+    if (me === null) {
+      throw new Error("You must be signed in.");
+    }
+    const self = await ctx.db.get(me);
+    if (self?.role !== "admin") {
+      throw new Error("Only admins can view all users.");
+    }
+    const users = await ctx.db.query("users").collect();
+    return users
+      .map((u) => ({
+        _id: u._id,
+        name: u.name ?? u.email?.split("@")[0] ?? "Student",
+        email: u.email ?? undefined,
+        image: u.image ?? undefined,
+        role: u.role ?? undefined,
+        canPostFeed: u.canPostFeed === true,
+      }))
+      .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+  },
+});
+
+/**
  * Search for classmates to @-mention in posts (name or email prefix match).
  */
 export const search = query({

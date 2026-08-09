@@ -67,6 +67,8 @@ const schema = defineSchema(
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
       role: v.optional(roleValidator), // role of the user. do not remove
+
+      canPostFeed: v.optional(v.boolean()), // granted by admins — allows posting to the study feed
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
     // Admin-authored announcements shown at the top of the study feed

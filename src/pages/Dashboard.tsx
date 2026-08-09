@@ -10,6 +10,7 @@ import {
   type FeedPostItem,
 } from "@/components/feed/FeedPostCard";
 import { FeedPostComposer } from "@/components/feed/FeedPostComposer";
+import { CuratorManager } from "@/components/feed/CuratorManager";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
@@ -72,6 +73,7 @@ export default function Dashboard() {
   const seededFeedRef = useRef(false);
   const promotedPosts = useQuery(api.posts.promoted);
   const isAdmin = user?.role === "admin";
+  const canPostFeed = isAdmin || user?.canPostFeed === true;
 
   // Debounce the search box
   useEffect(() => {
@@ -205,6 +207,12 @@ export default function Dashboard() {
 
           {isAdmin && (
             <div className="mt-4 max-w-3xl">
+              <CuratorManager currentUserId={user?._id} />
+            </div>
+          )}
+
+          {canPostFeed && (
+            <div className="mt-4 max-w-3xl">
               <FeedPostComposer />
             </div>
           )}
@@ -240,7 +248,7 @@ export default function Dashboard() {
                 <FeedPostCard
                   key={post._id}
                   post={post}
-                  canDelete={isAdmin}
+                  canDelete={isAdmin || (post.authorId === user?._id && canPostFeed)}
                 />
               ))
             )}

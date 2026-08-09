@@ -12,6 +12,17 @@ async function isAdmin(ctx: QueryCtx) {
   return user?.role === "admin";
 }
 
+/**
+ * True when the signed-in user may author feed posts: admins, plus any
+ * user an admin has granted feed access to (a "post curator").
+ */
+async function canPostFeed(ctx: QueryCtx) {
+  const userId = await getAuthUserId(ctx);
+  if (userId === null) return false;
+  const user = await ctx.db.get(userId);
+  return user?.role === "admin" || user?.canPostFeed === true;
+}
+
 async function hydrate(
   ctx: QueryCtx,
   posts: Doc<"feedPosts">[],
@@ -43,7 +54,7 @@ export const list = query({
   },
 });
 
-/** Create an admin feed post (admins only). */
+/** Create a feed post (admins and admin-selected curators only). */
 export const create = mutation({
   args: {
     title: v.string(),
@@ -52,8 +63,8 @@ export const create = mutation({
     imageStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
-    if (!(await isAdmin(ctx))) {
-      throw new Error("Only admins can post to the feed.");
+    if (!(await canPostFeed(ctx))) {
+      throw new Error("Only admins and selected curators can post to the feed.");
     }
     const userId = (await getAuthUserId(ctx)) as Id<"users">;
     const title = args.title.trim();
@@ -74,19 +85,50 @@ export const create = mutation({
   },
 });
 
-/** Delete an admin feed post (admins only). */
+/** Delete a feed post (admins, or the author when they are a curator). */
 export const remove = mutation({
   args: { id: v.id("feedPosts") },
   handler: async (ctx, args) => {
-    if (!(await isAdmin(ctx))) {
-      throw new Error("Only admins can delete feed posts.");
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("You must be signed in.");
     }
     const post = await ctx.db.get(args.id);
     if (post === null) return;
+
+    const user = await ctx.db.get(userId);
+    const isCurator = user?.canPostFeed === true;
+    const isOwner = post.authorId === userId;
+    if (user?.role !== "admin" && !(isCurator && isOwner)) {
+      throw new Error("You can only delete your own feed posts.");
+    }
     if (post.imageStorageId) {
       await ctx.storage.delete(post.imageStorageId);
     }
     await ctx.db.delete(args.id);
+  },
+});
+
+/**
+ * Grant or revoke feed-posting access for a user (admins only). This is the
+ * "post curators" control — curators can publish to the feed like admins.
+ */
+export const setCurator = mutation({
+  args: { userId: v.id("users"), canPostFeed: v.boolean() },
+  handler: async (ctx, args) => {
+    if (!(await isAdmin(ctx))) {
+      throw new Error("Only admins can manage feed curators.");
+    }
+    const target = await ctx.db.get(args.userId);
+    if (target === null) {
+      throw new Error("User not found.");
+    }
+    if (target.role === "admin") {
+      throw new Error("Admins already have feed access.");
+    }
+    await ctx.db.patch(args.userId, {
+      canPostFeed: args.canPostFeed ? true : undefined,
+    });
   },
 });
 
