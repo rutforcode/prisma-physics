@@ -245,7 +245,7 @@ export default function Landing() {
             <div className="mt-12 flex items-center gap-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <BookOpen className="size-4 text-primary" />
-                20 concepts
+                32 concepts
               </span>
               <span className="h-4 w-px bg-border" />
               <span className="flex items-center gap-1.5">
@@ -255,7 +255,7 @@ export default function Landing() {
               <span className="h-4 w-px bg-border" />
               <span className="flex items-center gap-1.5">
                 <Clock3 className="size-4 text-primary" />
-                ~2.5 h of reading
+                ~4 h of reading
               </span>
             </div>
           </motion.div>
@@ -378,7 +378,7 @@ export default function Landing() {
               Start with the classics
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              A taste of the 20-concept feed across all sixteen topics.
+              A taste of the 32-concept feed across all sixteen topics.
             </p>
             </div>
             <Button asChild variant="ghost" className="shrink-0">

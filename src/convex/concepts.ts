@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { SEED_CONCEPTS } from "./seedData";
+import { SEED_CONCEPTS_EXTRA } from "./seedDataExtras";
 import { v } from "convex/values";
 
 /**
@@ -11,7 +12,7 @@ export const seed = mutation({
   handler: async (ctx) => {
     let inserted = 0;
     let updated = 0;
-    for (const concept of SEED_CONCEPTS) {
+    for (const concept of [...SEED_CONCEPTS, ...SEED_CONCEPTS_EXTRA]) {
       const doc = {
         ...concept,
         tags: [...concept.tags],
