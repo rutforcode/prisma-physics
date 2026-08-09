@@ -1,5 +1,6 @@
 import { MathInline } from "@/components/MathJax";
-import { Delete, X } from "lucide-react";
+import { Delete, Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
 
 interface MathKey {
   /** LaTeX inserted at the caret (may contain `{}` placeholder pairs). */
@@ -322,56 +323,122 @@ export function MathKeyboard({
   onBackspace: () => void;
   onClose: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const normalized = query.trim().toLowerCase();
+
+  // Filter keys across every group by name, LaTeX command, label or group.
+  const filtered = useMemo(() => {
+    if (!normalized) return GROUPS;
+    const tokens = normalized.split(/\s+/);
+    return GROUPS.map((group) => ({
+      ...group,
+      keys: group.keys.filter((key) => {
+        const haystack = [key.aria, key.tex, key.label, group.title]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .replace(/\\/g, "");
+        return tokens.every((token) => haystack.includes(token));
+      }),
+    })).filter((group) => group.keys.length > 0);
+  }, [normalized]);
+
+  const matchCount = filtered.reduce((n, group) => n + group.keys.length, 0);
+
   return (
     <div className="max-h-[65vh] overflow-y-auto overscroll-contain">
-      <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between bg-background/90 px-1 pb-2 backdrop-blur">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-          Math keyboard
-        </p>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onBackspace}
-            aria-label="Delete character before cursor"
-            className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground"
-          >
-            <Delete className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close math keyboard"
-            className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
-
-      {GROUPS.map((group) => (
-        <div key={group.title} className="mt-2.5 first:mt-0">
-          <p className="px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
-            {group.title}
+      <div className="sticky top-0 z-10 -mx-1 space-y-2 bg-background/90 px-1 pb-2 backdrop-blur">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            Math keyboard
           </p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {group.keys.map((key) => (
-              <button
-                key={`${group.title}-${key.tex}`}
-                type="button"
-                aria-label={key.aria ?? `Insert ${key.tex}`}
-                onClick={() => onInsert(key.tex)}
-                className="glass-chip flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm text-foreground transition-all hover:-translate-y-px hover:text-primary"
-              >
-                {key.label ? (
-                  <span className="text-[13px] font-medium">{key.label}</span>
-                ) : (
-                  <MathInline tex={key.display ?? key.tex} />
-                )}
-              </button>
-            ))}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onBackspace}
+              aria-label="Delete character before cursor"
+              className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground"
+            >
+              <Delete className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close math keyboard"
+              className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
           </div>
         </div>
-      ))}
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Clear the search instead of closing the popover on first Esc
+              if (e.key === "Escape" && query) {
+                e.stopPropagation();
+                setQuery("");
+              }
+            }}
+            placeholder="Search symbols…"
+            aria-label="Search math symbols"
+            className="h-9 w-full rounded-lg border border-white/70 bg-white/50 pl-8 pr-8 text-sm shadow-inner outline-none transition-all placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-[3px] focus:ring-primary/15"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+
+        {normalized && matchCount > 0 && (
+          <p className="px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
+            {matchCount} symbol{matchCount === 1 ? "" : "s"} found
+          </p>
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="px-1 py-6 text-center text-sm text-muted-foreground">
+          No symbols match “{query.trim()}” — try “integral”, “gamma” or
+          “arrow”.
+        </p>
+      ) : (
+        filtered.map((group) => (
+          <div key={group.title} className="mt-2.5 first:mt-0">
+            <p className="px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
+              {group.title}
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {group.keys.map((key) => (
+                <button
+                  key={`${group.title}-${key.tex}`}
+                  type="button"
+                  aria-label={key.aria ?? `Insert ${key.tex}`}
+                  onClick={() => onInsert(key.tex)}
+                  className="glass-chip flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm text-foreground transition-all hover:-translate-y-px hover:text-primary"
+                >
+                  {key.label ? (
+                    <span className="text-[13px] font-medium">{key.label}</span>
+                  ) : (
+                    <MathInline tex={key.display ?? key.tex} />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }
