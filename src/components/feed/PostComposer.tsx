@@ -1,3 +1,4 @@
+import { MathKeyboard } from "@/components/MathKeyboard";
 import { MathText } from "@/components/MathJax";
 import {
   Select,
@@ -13,7 +14,7 @@ import { MentionText } from "@/lib/mentions";
 import { cn } from "@/lib/utils";
 import { TOPICS, type TopicId } from "@/lib/topic-meta";
 import { useMutation, useQuery } from "convex/react";
-import { AtSign, Eye, ImagePlus, Loader2, Send, X } from "lucide-react";
+import { AtSign, Eye, ImagePlus, Loader2, Send, Sigma, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export function PostComposer() {
@@ -36,6 +37,9 @@ export function PostComposer() {
   const [mentionStart, setMentionStart] = useState(0);
   const [caretPos, setCaretPos] = useState(0);
   const suggestions = useQuery(api.users.search, { query: mentionQuery });
+
+  // On-screen math keyboard visibility
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   // Object URL lifecycle for the image preview
   useEffect(() => {
@@ -79,6 +83,66 @@ export function PostComposer() {
   // Live preview shows once the post contains LaTeX math ($...$, $$...$$, \(...\))
   const hasMath =
     body.includes("$") || body.includes("\\(") || body.includes("\\[");
+
+  /**
+   * Insert a LaTeX token from the math keyboard at the caret. `{}` pairs act
+   * as placeholders: a selection is wrapped by the first pair, otherwise the
+   * caret lands inside it.
+   */
+  const insertTex = (tex: string) => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? caretPos;
+    const end = el.selectionEnd ?? start;
+    const selected = body.slice(start, end);
+
+    let insert = tex;
+    let caretOffset = insert.length;
+    const braceIndex = insert.indexOf("{}");
+    if (braceIndex !== -1) {
+      if (selected.length > 0) {
+        insert =
+          insert.slice(0, braceIndex) +
+          "{" +
+          selected +
+          "}" +
+          insert.slice(braceIndex + 2);
+        caretOffset = braceIndex + selected.length + 2;
+      } else {
+        caretOffset = braceIndex + 1;
+      }
+    } else if (selected.length > 0) {
+      // Plain symbols replace the selection (calculator-style)
+      caretOffset = insert.length;
+    }
+
+    const next = body.slice(0, start) + insert + body.slice(end);
+    setBody(next);
+    setMentionOpen(false);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + caretOffset;
+      el.setSelectionRange(pos, pos);
+      setCaretPos(pos);
+    });
+  };
+
+  const handleMathBackspace = () => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? caretPos;
+    const end = el.selectionEnd ?? start;
+    if (start === end && start === 0) return;
+    const from = start === end ? start - 1 : start;
+    const next = body.slice(0, from) + body.slice(end);
+    setBody(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = from;
+      el.setSelectionRange(pos, pos);
+      setCaretPos(pos);
+    });
+  };
 
   const insertMention = (name: string) => {
     const next =
@@ -165,7 +229,10 @@ export function PostComposer() {
           value={body}
           onChange={handleBodyChange}
           onKeyDown={(e) => {
-            if (e.key === "Escape") setMentionOpen(false);
+            if (e.key === "Escape") {
+              setMentionOpen(false);
+              setKeyboardOpen(false);
+            }
           }}
           placeholder="What would you like to discuss? Wrap formulas in $...$, or type @ to mention a classmate."
           rows={3}
@@ -217,6 +284,14 @@ export function PostComposer() {
         )}
       </div>
 
+      {keyboardOpen && (
+        <MathKeyboard
+          onInsert={insertTex}
+          onBackspace={handleMathBackspace}
+          onClose={() => setKeyboardOpen(false)}
+        />
+      )}
+
       {hasMath && (
         <div className="mt-3 rounded-xl border border-primary/15 bg-gradient-to-br from-sky-400/[0.07] via-white/40 to-indigo-400/[0.07] p-4">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -256,6 +331,20 @@ export function PostComposer() {
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(
+              "glass-chip border-0",
+              keyboardOpen && "bg-primary/10 text-primary",
+            )}
+            onClick={() => setKeyboardOpen((open) => !open)}
+          >
+            <Sigma className="size-4" />
+            Insert math
+          </Button>
+
           <input
             ref={fileInputRef}
             type="file"
