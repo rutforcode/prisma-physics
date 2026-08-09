@@ -314,6 +314,59 @@ const GROUPS: KeyGroup[] = [
   },
 ];
 
+const RECENT_KEY = "prism:math-recents";
+const RECENT_LIMIT = 10;
+
+/** Load recently used symbols from localStorage (best-effort). */
+function loadRecents(): MathKey[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is MathKey =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as MathKey).tex === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveRecents(recents: MathKey[]) {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recents));
+  } catch {
+    // Storage unavailable — ignore.
+  }
+}
+
+/** A single keyboard button, shared by the grouped grid and “recently used”. */
+function KeyButton({
+  item,
+  onInsert,
+}: {
+  item: MathKey;
+  onInsert: (key: MathKey) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={item.aria ?? `Insert ${item.tex}`}
+      onClick={() => onInsert(item)}
+      className="glass-chip flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm text-foreground transition-all hover:-translate-y-px hover:text-primary"
+    >
+      {item.label ? (
+        <span className="text-[13px] font-medium">{item.label}</span>
+      ) : (
+        <MathInline tex={item.display ?? item.tex} />
+      )}
+    </button>
+  );
+}
+
 export function MathKeyboard({
   onInsert,
   onBackspace,
@@ -324,6 +377,7 @@ export function MathKeyboard({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [recents, setRecents] = useState<MathKey[]>(() => loadRecents());
   const normalized = query.trim().toLowerCase();
 
   // Filter keys across every group by name, LaTeX command, label or group.
@@ -344,6 +398,24 @@ export function MathKeyboard({
   }, [normalized]);
 
   const matchCount = filtered.reduce((n, group) => n + group.keys.length, 0);
+
+  /** Record a used symbol (most recent first) and hand it to the composer. */
+  const handleInsert = (key: MathKey) => {
+    setRecents((prev) => {
+      const next = [key, ...prev.filter((item) => item.tex !== key.tex)].slice(
+        0,
+        RECENT_LIMIT,
+      );
+      saveRecents(next);
+      return next;
+    });
+    onInsert(key.tex);
+  };
+
+  const clearRecents = () => {
+    setRecents([]);
+    saveRecents([]);
+  };
 
   return (
     <div className="max-h-[65vh] overflow-y-auto overscroll-contain">
@@ -414,30 +486,50 @@ export function MathKeyboard({
           “arrow”.
         </p>
       ) : (
-        filtered.map((group) => (
-          <div key={group.title} className="mt-2.5 first:mt-0">
-            <p className="px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
-              {group.title}
-            </p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {group.keys.map((key) => (
+        <>
+          {!normalized && recents.length > 0 && (
+            <div className="mt-2.5 first:mt-0">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
+                  Recently used
+                </p>
                 <button
-                  key={`${group.title}-${key.tex}`}
                   type="button"
-                  aria-label={key.aria ?? `Insert ${key.tex}`}
-                  onClick={() => onInsert(key.tex)}
-                  className="glass-chip flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm text-foreground transition-all hover:-translate-y-px hover:text-primary"
+                  onClick={clearRecents}
+                  className="text-[10px] font-medium text-muted-foreground/70 transition-colors hover:text-destructive"
                 >
-                  {key.label ? (
-                    <span className="text-[13px] font-medium">{key.label}</span>
-                  ) : (
-                    <MathInline tex={key.display ?? key.tex} />
-                  )}
+                  Clear
                 </button>
-              ))}
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {recents.map((item) => (
+                  <KeyButton
+                    key={item.tex}
+                    item={item}
+                    onInsert={handleInsert}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))
+          )}
+
+          {filtered.map((group) => (
+            <div key={group.title} className="mt-2.5 first:mt-0">
+              <p className="px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
+                {group.title}
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {group.keys.map((key) => (
+                  <KeyButton
+                    key={`${group.title}-${key.tex}`}
+                    item={key}
+                    onInsert={handleInsert}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
       )}
     </div>
   );
