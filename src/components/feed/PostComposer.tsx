@@ -1,3 +1,4 @@
+import { MathText } from "@/components/MathJax";
 import {
   Select,
   SelectContent,
@@ -8,10 +9,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { MentionText } from "@/lib/mentions";
 import { cn } from "@/lib/utils";
 import { TOPICS, type TopicId } from "@/lib/topic-meta";
 import { useMutation, useQuery } from "convex/react";
-import { AtSign, ImagePlus, Loader2, Send, X } from "lucide-react";
+import { AtSign, Eye, ImagePlus, Loader2, Send, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export function PostComposer() {
@@ -73,6 +75,10 @@ export function PostComposer() {
       setMentionOpen(false);
     }
   };
+
+  // Live preview shows once the post contains LaTeX math ($...$, $$...$$, \(...\))
+  const hasMath =
+    body.includes("$") || body.includes("\\(") || body.includes("\\[");
 
   const insertMention = (name: string) => {
     const next =
@@ -161,7 +167,7 @@ export function PostComposer() {
           onKeyDown={(e) => {
             if (e.key === "Escape") setMentionOpen(false);
           }}
-          placeholder="What would you like to discuss? Questions, notes, and mini-explanations welcome — type @ to mention a classmate."
+          placeholder="What would you like to discuss? Wrap formulas in $...$, or type @ to mention a classmate."
           rows={3}
           className="w-full resize-none rounded-xl border border-white/70 bg-white/50 px-4 py-3 text-sm leading-relaxed shadow-inner outline-none transition-all placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-[3px] focus:ring-primary/15"
         />
@@ -210,6 +216,25 @@ export function PostComposer() {
           </div>
         )}
       </div>
+
+      {hasMath && (
+        <div className="mt-3 rounded-xl border border-primary/15 bg-gradient-to-br from-sky-400/[0.07] via-white/40 to-indigo-400/[0.07] p-4">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            <Eye className="size-3.5" />
+            Live preview
+          </p>
+          <div className="mt-2.5">
+            {title.trim() && (
+              <h4 className="font-display text-lg font-semibold leading-snug tracking-tight">
+                {title}
+              </h4>
+            )}
+            <MathText className="mt-1 block whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
+              <MentionText text={body} />
+            </MathText>
+          </div>
+        </div>
+      )}
 
       {previewUrl && (
         <div className="relative mt-3 inline-block">
