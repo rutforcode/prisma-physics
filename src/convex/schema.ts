@@ -59,6 +59,16 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
+    // Community posts — students share questions, notes, and explanations
+    posts: defineTable({
+      authorId: v.id("users"),
+      title: v.string(),
+      body: v.string(),
+      topic: v.optional(topicValidator),
+      imageStorageId: v.optional(v.id("_storage")),
+      likedBy: v.array(v.id("users")),
+    }).index("by_author", ["authorId"]),
+
     // Physics concept explanations shown in the study feed
     concepts: defineTable({
       slug: v.string(),

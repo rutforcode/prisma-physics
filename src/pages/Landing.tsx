@@ -464,12 +464,15 @@ export default function Landing() {
             <Link to="/dashboard" className="transition-colors hover:text-foreground">
               Feed
             </Link>
+            <Link to="/community" className="transition-colors hover:text-foreground">
+              Community
+            </Link>
             <Link to="/auth" className="transition-colors hover:text-foreground">
               Sign in
             </Link>
           </nav>
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Prism. For curious students.
+          <p className="text-sm text-muted-foreground">
+            Built by <span className="font-semibold text-foreground">Rutforcode</span> with 🩷
           </p>
         </div>
       </footer>
