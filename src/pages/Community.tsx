@@ -1,6 +1,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { AuroraBackground } from "@/components/AuroraBackground";
 import { GlassFooter } from "@/components/GlassFooter";
+import { SortSelect } from "@/components/SortSelect";
 import { PostCard, type PostItem } from "@/components/feed/PostCard";
 import { PostComposer } from "@/components/feed/PostComposer";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,10 +40,14 @@ export default function Community() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [topic, setTopic] = useState<string | null>(null);
+  const [sort, setSort] = useState<"newest" | "oldest" | "likes">("newest");
   const [searchParams, setSearchParams] = useSearchParams();
   const postParam = searchParams.get("post");
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const posts = useQuery(api.posts.list, { topic: topic ?? undefined });
+  const posts = useQuery(api.posts.list, {
+    topic: topic ?? undefined,
+    sort,
+  });
   const isLoading = posts === undefined;
 
   // Deep link from a notification: reveal the topic filter, scroll to the
@@ -92,7 +97,7 @@ export default function Community() {
         <div className="mt-8 space-y-8">
           <PostComposer />
 
-          {/* Topic filter */}
+          {/* Topic filter + sort */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -126,6 +131,17 @@ export default function Community() {
                 </button>
               );
             })}
+
+            <SortSelect
+              className="ml-auto"
+              value={sort}
+              onChange={(v) => setSort(v as "newest" | "oldest" | "likes")}
+              options={[
+                { value: "newest", label: "Newest" },
+                { value: "likes", label: "Most liked" },
+                { value: "oldest", label: "Oldest" },
+              ]}
+            />
           </div>
 
           {/* Posts */}

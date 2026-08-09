@@ -1,6 +1,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { AuroraBackground } from "@/components/AuroraBackground";
 import { GlassFooter } from "@/components/GlassFooter";
+import { SortSelect } from "@/components/SortSelect";
 import { ConceptCard } from "@/components/feed/ConceptCard";
 import { ConceptReader } from "@/components/feed/ConceptReader";
 import { PostCard, type PostItem } from "@/components/feed/PostCard";
@@ -51,12 +52,16 @@ export default function Dashboard() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<DifficultyId | null>(null);
+  const [sort, setSort] = useState<
+    "newest" | "az" | "za" | "shortest" | "longest" | "easiest" | "hardest"
+  >("az");
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
   const concepts = useQuery(api.concepts.list, {
     topic: topic ?? undefined,
     difficulty: difficulty ?? undefined,
     search: debouncedSearch || undefined,
+    sort,
   });
   const topicCounts = useQuery(api.concepts.topics);
   const seed = useMutation(api.concepts.seed);
@@ -289,7 +294,7 @@ export default function Dashboard() {
               })}
             </div>
 
-            {/* Difficulty filter */}
+            {/* Difficulty filter + sort */}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <span className="mr-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Level
@@ -312,6 +317,32 @@ export default function Dashboard() {
                   {d.label}
                 </button>
               ))}
+
+              <SortSelect
+                className="ml-auto"
+                value={sort}
+                onChange={(v) =>
+                  setSort(
+                    v as
+                      | "newest"
+                      | "az"
+                      | "za"
+                      | "shortest"
+                      | "longest"
+                      | "easiest"
+                      | "hardest",
+                  )
+                }
+                options={[
+                  { value: "az", label: "Title A–Z" },
+                  { value: "za", label: "Title Z–A" },
+                  { value: "newest", label: "Newest" },
+                  { value: "shortest", label: "Shortest read" },
+                  { value: "longest", label: "Longest read" },
+                  { value: "easiest", label: "Easiest first" },
+                  { value: "hardest", label: "Hardest first" },
+                ]}
+              />
             </div>
           </>
         )}
@@ -371,7 +402,7 @@ export default function Dashboard() {
               </motion.div>
             ) : (
               <motion.div
-                key={`grid-${topic ?? "all"}-${difficulty ?? "all"}-${debouncedSearch}`}
+                key={`grid-${topic ?? "all"}-${difficulty ?? "all"}-${debouncedSearch}-${sort}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

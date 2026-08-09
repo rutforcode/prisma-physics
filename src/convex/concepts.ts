@@ -34,7 +34,19 @@ export const seed = mutation({
   },
 });
 
-/** List concepts, optionally filtered by topic, difficulty, and a search string. */
+const SORT_OPTIONS = v.union(
+  v.literal("newest"),
+  v.literal("az"),
+  v.literal("za"),
+  v.literal("shortest"),
+  v.literal("longest"),
+  v.literal("easiest"),
+  v.literal("hardest"),
+);
+
+const DIFFICULTY_ORDER = { intro: 0, intermediate: 1, advanced: 2 } as const;
+
+/** List concepts, optionally filtered by topic, difficulty, search, and sorted. */
 export const list = query({
   args: {
     topic: v.optional(v.string()),
@@ -42,6 +54,7 @@ export const list = query({
       v.union(v.literal("intro"), v.literal("intermediate"), v.literal("advanced")),
     ),
     search: v.optional(v.string()),
+    sort: v.optional(SORT_OPTIONS),
   },
   handler: async (ctx, args) => {
     let concepts = await ctx.db.query("concepts").collect();
@@ -67,7 +80,38 @@ export const list = query({
       });
     }
 
-    return concepts.sort((a, b) => a.title.localeCompare(b.title));
+    switch (args.sort ?? "az") {
+      case "newest":
+        concepts.sort((a, b) => b._creationTime - a._creationTime);
+        break;
+      case "za":
+        concepts.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case "shortest":
+        concepts.sort((a, b) => a.readingMinutes - b.readingMinutes);
+        break;
+      case "longest":
+        concepts.sort((a, b) => b.readingMinutes - a.readingMinutes);
+        break;
+      case "easiest":
+        concepts.sort(
+          (a, b) =>
+            DIFFICULTY_ORDER[a.difficulty] - DIFFICULTY_ORDER[b.difficulty],
+        );
+        break;
+      case "hardest":
+        concepts.sort(
+          (a, b) =>
+            DIFFICULTY_ORDER[b.difficulty] - DIFFICULTY_ORDER[a.difficulty],
+        );
+        break;
+      case "az":
+      default:
+        concepts.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+    }
+
+    return concepts;
   },
 });
 

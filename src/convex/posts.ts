@@ -98,16 +98,36 @@ async function hydratePosts(ctx: QueryCtx, posts: Doc<"posts">[]) {
   return result;
 }
 
-/** List posts newest-first, joined with author info and image URLs. */
+/** List posts with optional topic filter and sort, joined with author info. */
 export const list = query({
-  args: { topic: v.optional(v.string()) },
+  args: {
+    topic: v.optional(v.string()),
+    sort: v.optional(
+      v.union(v.literal("newest"), v.literal("oldest"), v.literal("likes")),
+    ),
+  },
   handler: async (ctx, args) => {
     const posts = await ctx.db.query("posts").collect();
-    posts.sort((a, b) => b._creationTime - a._creationTime);
-    return await hydratePosts(
-      ctx,
-      posts.filter((post) => !args.topic || post.topic === args.topic),
+    const filtered = posts.filter(
+      (post) => !args.topic || post.topic === args.topic,
     );
+    switch (args.sort ?? "newest") {
+      case "oldest":
+        filtered.sort((a, b) => a._creationTime - b._creationTime);
+        break;
+      case "likes":
+        filtered.sort(
+          (a, b) =>
+            b.likedBy.length - a.likedBy.length ||
+            b._creationTime - a._creationTime,
+        );
+        break;
+      case "newest":
+      default:
+        filtered.sort((a, b) => b._creationTime - a._creationTime);
+        break;
+    }
+    return await hydratePosts(ctx, filtered);
   },
 });
 
