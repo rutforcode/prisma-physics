@@ -77,7 +77,8 @@ const schema = defineSchema(
       title: v.string(),
       body: v.string(),
       topic: v.optional(topicValidator),
-      imageStorageId: v.optional(v.id("_storage")),
+      images: v.optional(v.array(v.id("_storage"))), // up to MAX_IMAGES attachments
+      editedAt: v.optional(v.number()), // set when a post is edited
     }).index("by_author", ["authorId"]),
 
     // Community posts — students share questions, notes, and explanations

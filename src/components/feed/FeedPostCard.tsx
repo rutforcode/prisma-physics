@@ -12,26 +12,31 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MathText } from "@/components/MathJax";
 import { api } from "@/convex/_generated/api";
-import type { Doc } from "@/convex/_generated/dataModel";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { topicMeta } from "@/lib/topic-meta";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
-import { Atom, Trash2 } from "lucide-react";
+import { Atom, Pencil, Trash2 } from "lucide-react";
 
 export interface FeedPostItem extends Doc<"feedPosts"> {
   authorName: string;
   authorImage: string | null;
   isTeamPost: boolean;
-  imageUrl: string | null;
+  images: Id<"_storage">[];
+  imageUrls: (string | null)[];
 }
 
 export function FeedPostCard({
   post,
   canDelete,
+  canEdit,
+  onEdit,
 }: {
   post: FeedPostItem;
   canDelete: boolean;
+  canEdit?: boolean;
+  onEdit?: () => void;
 }) {
   const removePost = useMutation(api.feedPosts.remove);
   const topic = post.topic ? topicMeta(post.topic) : null;
@@ -66,6 +71,7 @@ export function FeedPostCard({
             {formatDistanceToNow(new Date(post._creationTime), {
               addSuffix: true,
             })}
+            {post.editedAt && <span> · edited</span>}
           </p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -80,6 +86,16 @@ export function FeedPostCard({
               <topic.icon className="size-3" />
               {topic.label}
             </Badge>
+          )}
+          {canEdit && onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+              aria-label="Edit feed post"
+            >
+              <Pencil className="size-4" />
+            </button>
           )}
           {canDelete && (
             <AlertDialog>
@@ -122,12 +138,24 @@ export function FeedPostCard({
         <MathText>{post.body}</MathText>
       </p>
 
-      {post.imageUrl && (
-        <img
-          src={post.imageUrl}
-          alt={`Attachment for ${post.title}`}
-          className="mt-4 max-h-96 w-full rounded-2xl object-cover ring-1 ring-white/70"
-        />
+      {post.imageUrls.length > 0 && (
+        <div
+          className={cn(
+            "mt-4 grid gap-3",
+            post.imageUrls.length === 1
+              ? "grid-cols-1"
+              : "grid-cols-2 sm:grid-cols-3",
+          )}
+        >
+          {post.imageUrls.map((url, i) => (
+            <img
+              key={i}
+              src={url ?? undefined}
+              alt={`Attachment ${i + 1} for ${post.title}`}
+              className="max-h-96 w-full rounded-2xl object-cover ring-1 ring-white/70"
+            />
+          ))}
+        </div>
       )}
     </article>
   );

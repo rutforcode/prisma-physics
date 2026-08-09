@@ -57,6 +57,7 @@ export default function Dashboard() {
     "newest" | "az" | "za" | "shortest" | "longest" | "easiest" | "hardest"
   >("az");
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<FeedPostItem | null>(null);
 
   const concepts = useQuery(api.concepts.list, {
     topic: topic ?? undefined,
@@ -213,7 +214,11 @@ export default function Dashboard() {
 
           {canPostFeed && (
             <div className="mt-4 max-w-3xl">
-              <FeedPostComposer />
+              <FeedPostComposer
+                key={editingPost?._id ?? "new"}
+                initialPost={editingPost}
+                onCancel={() => setEditingPost(null)}
+              />
             </div>
           )}
 
@@ -244,13 +249,19 @@ export default function Dashboard() {
                 </div>
               </>
             ) : (
-              (feedPosts as FeedPostItem[]).map((post) => (
-                <FeedPostCard
-                  key={post._id}
-                  post={post}
-                  canDelete={isAdmin || (post.authorId === user?._id && canPostFeed)}
-                />
-              ))
+              (feedPosts as FeedPostItem[]).map((post) => {
+                const canModerate =
+                  isAdmin || (post.authorId === user?._id && canPostFeed);
+                return (
+                  <FeedPostCard
+                    key={post._id}
+                    post={post}
+                    canDelete={canModerate}
+                    canEdit={canModerate}
+                    onEdit={() => setEditingPost(post)}
+                  />
+                );
+              })
             )}
           </div>
         </section>

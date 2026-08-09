@@ -1,5 +1,12 @@
+import type { FeedPostItem } from "@/components/feed/FeedPostCard";
 import { MathKeyboard } from "@/components/MathKeyboard";
 import { MathText } from "@/components/MathJax";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -7,29 +14,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { cn } from "@/lib/utils";
+import {
+  MAX_BODY_CHARS,
+  MAX_IMAGES,
+  countFormulas,
+  countNonFormulaChars,
+} from "@/lib/math-count";
 import { TOPICS, type TopicId } from "@/lib/topic-meta";
+import { cn } from "@/lib/utils";
 import { useMutation } from "convex/react";
-import { ImagePlus, Loader2, Megaphone, Send, Sigma, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  ImagePlus,
+  Loader2,
+  Megaphone,
+  Pencil,
+  Send,
+  Sigma,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-export function FeedPostComposer() {
+export function FeedPostComposer({
+  initialPost,
+  onCancel,
+}: {
+  initialPost?: FeedPostItem | null;
+  onCancel?: () => void;
+} = {}) {
+  const isEditing = initialPost != null;
+
   const createPost = useMutation(api.feedPosts.create);
+  const updatePost = useMutation(api.feedPosts.update);
   const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
 
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [topic, setTopic] = useState<TopicId | undefined>(undefined);
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [title, setTitle] = useState(initialPost?.title ?? "");
+  const [body, setBody] = useState(initialPost?.body ?? "");
+  const [topic, setTopic] = useState<TopicId | undefined>(
+    initialPost?.topic ?? undefined,
+  );
+  const [existingImages, setExistingImages] = useState<
+    { id: Id<"_storage">; url: string | null }[]
+  >(() =>
+    (initialPost?.images ?? []).map((id, i) => ({
+      id,
+      url: initialPost?.imageUrls[i] ?? null,
+    })),
+  );
+  const [files, setFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -38,14 +72,22 @@ export function FeedPostComposer() {
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setFilePreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
+
+  // Live character budget — formulas don't count.
+  const { chars, formulas } = useMemo(
+    () => ({
+      chars: countNonFormulaChars(body),
+      formulas: countFormulas(body),
+    }),
+    [body],
+  );
+  const overLimit = chars > MAX_BODY_CHARS;
+  const nearLimit = chars >= MAX_BODY_CHARS * 0.9;
+  const imageCount = existingImages.length + files.length;
 
   const hasMath =
     body.includes("$") || body.includes("\\(") || body.includes("\\[");
@@ -100,41 +142,80 @@ export function FeedPostComposer() {
     });
   };
 
+  const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    // Enforce the budget: block edits that push the (non-formula) count
+    // over the limit, but always allow deletions to make room.
+    if (countNonFormulaChars(value) > MAX_BODY_CHARS && value.length > body.length) {
+      return;
+    }
+    setBody(value);
+    setCaretPos(e.target.selectionStart ?? value.length);
+  };
+
+  const handleFilesChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosen = Array.from(e.target.files ?? []);
+    setError(null);
+    const valid = chosen.filter((f) => f.type.startsWith("image/"));
+    if (valid.length < chosen.length) {
+      setError("Please choose image files (PNG, JPG…).");
+    }
+    const room = MAX_IMAGES - imageCount;
+    setFiles((prev) => [...prev, ...valid].slice(0, room));
+    if (e.target) e.target.value = "";
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!title.trim() || !body.trim() || isSubmitting) return;
+    if (!title.trim() || !body.trim() || isSubmitting || overLimit) return;
 
     setIsSubmitting(true);
     setError(null);
     try {
-      let imageStorageId: Id<"_storage"> | undefined;
-      if (file) {
+      // Upload any newly attached images.
+      const storageIds: Id<"_storage">[] = [];
+      for (const f of files) {
         const uploadUrl = await generateUploadUrl();
         const upload = await fetch(uploadUrl, {
           method: "POST",
-          headers: { "Content-Type": file.type },
-          body: file,
+          headers: { "Content-Type": f.type },
+          body: f,
         });
         if (!upload.ok) throw new Error("Upload failed — please try again.");
         const { storageId } = (await upload.json()) as {
           storageId: Id<"_storage">;
         };
-        imageStorageId = storageId;
+        storageIds.push(storageId);
       }
+      const images = [
+        ...existingImages.map((img) => img.id),
+        ...storageIds,
+      ];
 
-      await createPost({
-        title: title.trim(),
-        body: body.trim(),
-        topic,
-        imageStorageId,
-      });
-
-      setTitle("");
-      setBody("");
-      setTopic(undefined);
-      setFile(null);
+      if (isEditing && initialPost) {
+        await updatePost({
+          id: initialPost._id,
+          title: title.trim(),
+          body: body.trim(),
+          topic,
+          images,
+        });
+        onCancel?.();
+      } else {
+        await createPost({
+          title: title.trim(),
+          body: body.trim(),
+          topic,
+          images,
+        });
+        setTitle("");
+        setBody("");
+        setTopic(undefined);
+        setFiles([]);
+        setExistingImages([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
       setKeyboardOpen(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       console.error("Feed post error:", err);
       setError(
@@ -152,9 +233,23 @@ export function FeedPostComposer() {
     >
       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
         <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-400/30 to-indigo-500/20 text-primary">
-          <Megaphone className="size-4" />
+          {isEditing ? (
+            <Pencil className="size-4" />
+          ) : (
+            <Megaphone className="size-4" />
+          )}
         </span>
-        Share an announcement
+        {isEditing ? "Edit announcement" : "Share an announcement"}
+        {isEditing && onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="ml-auto flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+            aria-label="Cancel editing"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
 
       <input
@@ -166,21 +261,48 @@ export function FeedPostComposer() {
         className="mt-4 h-11 w-full rounded-xl border border-white/70 bg-white/50 px-4 text-sm shadow-inner outline-none transition-all placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-[3px] focus:ring-primary/15"
       />
 
-      <div className="relative mt-3">
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Body
+        </span>
+        <span
+          className={cn(
+            "text-xs tabular-nums",
+            overLimit
+              ? "font-semibold text-destructive"
+              : nearLimit
+                ? "text-amber-600"
+                : "text-muted-foreground",
+          )}
+        >
+          {chars.toLocaleString()} / {MAX_BODY_CHARS.toLocaleString()}
+          {formulas > 0 && (
+            <span className="text-muted-foreground">
+              {" "}
+              · {formulas} formula{formulas === 1 ? "" : "s"} not counted
+            </span>
+          )}
+        </span>
+      </div>
+
+      <div className="relative mt-1.5">
         <textarea
           ref={bodyRef}
           value={body}
-          onChange={(e) => {
-            setBody(e.target.value);
-            setCaretPos(e.target.selectionStart ?? e.target.value.length);
-          }}
+          onChange={handleBodyChange}
           onKeyDown={(e) => {
             if (e.key === "Escape") setKeyboardOpen(false);
           }}
           placeholder="Announcements, study tips, reminders… Wrap formulas in $...$."
-          rows={3}
+          rows={4}
           className="w-full resize-none rounded-xl border border-white/70 bg-white/50 px-4 py-3 text-sm leading-relaxed shadow-inner outline-none transition-all placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-[3px] focus:ring-primary/15"
         />
+        {overLimit && (
+          <p className="mt-1 text-xs text-destructive">
+            Over the {MAX_BODY_CHARS.toLocaleString()}-character limit —
+            delete some text or move more into $...$ formulas.
+          </p>
+        )}
       </div>
 
       {hasMath && (
@@ -201,21 +323,52 @@ export function FeedPostComposer() {
         </div>
       )}
 
-      {previewUrl && (
-        <div className="relative mt-3 inline-block">
-          <img
-            src={previewUrl}
-            alt="Attachment preview"
-            className="h-44 w-full rounded-xl object-cover sm:w-72"
-          />
-          <button
-            type="button"
-            onClick={() => setFile(null)}
-            className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-white/80 text-foreground shadow backdrop-blur transition-colors hover:bg-white"
-            aria-label="Remove image"
-          >
-            <X className="size-4" />
-          </button>
+      {imageCount > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+          {existingImages.map((img) => (
+            <div
+              key={img.id}
+              className="group relative aspect-video overflow-hidden rounded-xl ring-1 ring-white/70"
+            >
+              <img
+                src={img.url ?? undefined}
+                alt="Attachment"
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setExistingImages((prev) =>
+                    prev.filter((x) => x.id !== img.id),
+                  )
+                }
+                className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-white/80 text-foreground shadow backdrop-blur transition-colors hover:bg-white"
+                aria-label="Remove image"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          ))}
+          {files.map((f, i) => (
+            <div
+              key={i}
+              className="group relative aspect-video overflow-hidden rounded-xl ring-1 ring-white/70"
+            >
+              <img
+                src={filePreviews[i]}
+                alt={f.name}
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-white/80 text-foreground shadow backdrop-blur transition-colors hover:bg-white"
+                aria-label="Remove image"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -254,17 +407,9 @@ export function FeedPostComposer() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              if (!f.type.startsWith("image/")) {
-                setError("Please choose an image file (PNG, JPG…).");
-                return;
-              }
-              setError(null);
-              setFile(f);
-            }}
+            onChange={handleFilesChosen}
             id="feed-post-image-input"
           />
           <Button
@@ -273,10 +418,16 @@ export function FeedPostComposer() {
             size="sm"
             className="glass-chip border-0"
             onClick={() => fileInputRef.current?.click()}
+            disabled={imageCount >= MAX_IMAGES}
           >
             <ImagePlus className="size-4" />
-            {file ? "Change image" : "Attach image"}
+            {isEditing ? "Add image" : "Attach image"}
           </Button>
+          {imageCount > 0 && (
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {imageCount}/{MAX_IMAGES} images
+            </span>
+          )}
 
           <Select
             value={topic}
@@ -306,18 +457,20 @@ export function FeedPostComposer() {
 
         <Button
           type="submit"
-          disabled={!title.trim() || !body.trim() || isSubmitting}
+          disabled={
+            !title.trim() || !body.trim() || isSubmitting || overLimit
+          }
           className="rounded-xl"
         >
           {isSubmitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Publishing…
+              {isEditing ? "Saving…" : "Publishing…"}
             </>
           ) : (
             <>
               <Send className="size-4" />
-              Publish
+              {isEditing ? "Save changes" : "Publish"}
             </>
           )}
         </Button>
