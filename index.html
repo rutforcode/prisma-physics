@@ -24,9 +24,10 @@
       tex: {
         inlineMath: [["$", "$"], ["\\\(", "\\\)"]],
         displayMath: [["$$", "$$"], ["\\\[", "\\\]"]],
+        throwOnError: false,
       },
       options: {
-        ignoreHtmlClass: "not-mathjax",
+        skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
       },
       chtml: {
         scale: 1.04,

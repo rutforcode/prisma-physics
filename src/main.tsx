@@ -1,4 +1,5 @@
 import '@vly-ai/integrations';
+import { MathJaxAutoRender } from "@/components/MathJax";
 import { Toaster } from "@/components/ui/sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
@@ -112,6 +113,7 @@ function RouteSyncer() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
+    <MathJaxAutoRender />
     <RootErrorBoundary>
       <ToolbarErrorBoundary>
         <VlyToolbar />
