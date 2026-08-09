@@ -1,3 +1,4 @@
+import { MathDisplay, MathText } from "@/components/MathJax";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { difficultyMeta, topicMeta } from "@/lib/topic-meta";
@@ -84,9 +85,10 @@ export function ConceptReader({
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               Key equation
             </p>
-            <p className="mt-2 font-mono text-lg font-medium leading-relaxed text-foreground md:text-xl">
-              {concept.keyFormula}
-            </p>
+            <MathDisplay
+              tex={concept.keyFormula}
+              className="mt-2 text-lg text-foreground md:text-xl"
+            />
           </div>
         )}
       </div>
@@ -105,7 +107,7 @@ export function ConceptReader({
               {section.heading}
             </h2>
             <p className="mt-3 text-[15px] leading-relaxed text-foreground/85">
-              {section.body}
+              <MathText>{section.body}</MathText>
             </p>
           </section>
         ))}
@@ -122,7 +124,7 @@ export function ConceptReader({
               <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
                 <Check className="size-3" />
               </span>
-              <span className="text-[15px] leading-relaxed">{takeaway}</span>
+              <MathText className="text-[15px] leading-relaxed">{takeaway}</MathText>
             </li>
           ))}
         </ul>

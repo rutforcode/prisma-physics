@@ -1,4 +1,5 @@
 import { AuroraBackground } from "@/components/AuroraBackground";
+import { MathInline } from "@/components/MathJax";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -105,9 +106,7 @@ function FloatingFormula({
         }}
         className="glass rounded-2xl px-5 py-4"
       >
-        <p className="font-mono text-sm font-medium text-primary">
-          {formula}
-        </p>
+        <MathInline tex={formula} className="text-sm text-primary" />
         <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">
           {note}
         </p>
@@ -156,24 +155,24 @@ export default function Landing() {
         {/* Hero */}
         <section className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-24 pt-24 text-center md:pt-32">
           <FloatingFormula
-            formula="E = h·f"
+            formula="E = hf"
             note="Photon energy"
             className="left-2 top-40"
           />
           <FloatingFormula
-            formula="ΔS ≥ 0"
+            formula="\Delta S \geq 0"
             note="Second law"
             className="right-4 top-56"
             delay={1.2}
           />
           <FloatingFormula
-            formula="F = −kx"
+            formula="F = -kx"
             note="Simple harmonic motion"
             className="bottom-24 left-6"
             delay={0.6}
           />
           <FloatingFormula
-            formula="Δt = γ·Δt₀"
+            formula="\Delta t = \gamma \Delta t_0"
             note="Time dilation"
             className="bottom-32 right-10"
             delay={1.8}

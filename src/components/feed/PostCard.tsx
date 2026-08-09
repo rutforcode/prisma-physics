@@ -147,7 +147,7 @@ export function PostCard({
       <h3 className="font-display mt-4 text-xl font-semibold leading-snug tracking-tight">
         {post.title}
       </h3>
-      <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85">
+      <p className="not-mathjax mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85">
         <MentionText text={post.body} mentionMap={mentionMap} />
       </p>
 

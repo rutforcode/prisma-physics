@@ -1,3 +1,4 @@
+import { MathInline } from "@/components/MathJax";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { difficultyMeta, topicMeta } from "@/lib/topic-meta";
@@ -42,10 +43,8 @@ export function ConceptCard({
       </p>
 
       {concept.keyFormula && (
-        <div className="glass-chip mt-4 inline-flex w-fit max-w-full items-center gap-2 rounded-xl px-3 py-1.5">
-          <span className="font-mono text-[13px] font-medium text-primary">
-            {concept.keyFormula}
-          </span>
+        <div className="glass-chip mt-4 inline-flex max-w-full items-center overflow-x-auto rounded-xl px-3 py-2">
+          <MathInline tex={concept.keyFormula} className="text-primary" />
         </div>
       )}
 

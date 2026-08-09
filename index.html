@@ -17,6 +17,26 @@
     rel="stylesheet"
   />
   <title>Prism · Physics, made clear</title>
+
+  <!-- MathJax 3: renders TeX formulas ($...$ inline, $$...$$ display) -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["$", "$"], ["\\\(", "\\\)"]],
+        displayMath: [["$$", "$$"], ["\\\[", "\\\]"]],
+      },
+      options: {
+        ignoreHtmlClass: "not-mathjax",
+      },
+      chtml: {
+        scale: 1.04,
+      },
+    };
+  </script>
+  <script
+    defer
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
+  ></script>
 </head>
 
 

@@ -3,25 +3,34 @@ import { SEED_CONCEPTS } from "./seedData";
 import { v } from "convex/values";
 
 /**
- * Seed the concepts table on first run (idempotent: no-op if data exists).
- * Called once from the feed page when the query returns empty.
+ * Seed the concepts table, upserting by slug so content edits (e.g. TeX
+ * formula upgrades) propagate to already-seeded deployments. Idempotent.
  */
 export const seed = mutation({
   args: {},
   handler: async (ctx) => {
-    const existing = await ctx.db.query("concepts").first();
-    if (existing) return { seeded: 0 };
     let inserted = 0;
+    let updated = 0;
     for (const concept of SEED_CONCEPTS) {
-      await ctx.db.insert("concepts", {
+      const doc = {
         ...concept,
         tags: [...concept.tags],
         content: concept.content.map((section) => ({ ...section })),
         takeaways: [...concept.takeaways],
-      });
-      inserted += 1;
+      };
+      const existing = await ctx.db
+        .query("concepts")
+        .withIndex("by_slug", (q) => q.eq("slug", concept.slug))
+        .unique();
+      if (existing) {
+        await ctx.db.patch(existing._id, doc);
+        updated += 1;
+      } else {
+        await ctx.db.insert("concepts", doc);
+        inserted += 1;
+      }
     }
-    return { seeded: inserted };
+    return { inserted, updated };
   },
 });
 

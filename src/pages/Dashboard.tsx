@@ -55,14 +55,12 @@ export default function Dashboard() {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Seed the concepts table once on first load
+  // Keep the concepts table in sync with the seed content (idempotent upsert)
   useEffect(() => {
     if (
       !seededRef.current &&
       concepts !== undefined &&
-      concepts.length === 0 &&
-      topicCounts !== undefined &&
-      topicCounts.length === 0
+      topicCounts !== undefined
     ) {
       seededRef.current = true;
       void seed();
