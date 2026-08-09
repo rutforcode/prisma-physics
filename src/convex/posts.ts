@@ -4,6 +4,14 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { topicValidator } from "./schema";
 import { mutation, query, QueryCtx } from "./_generated/server";
 
+/** True when the signed-in user holds the admin role. */
+async function isAdminUser(ctx: QueryCtx) {
+  const userId = await getAuthUserId(ctx);
+  if (userId === null) return false;
+  const user = await ctx.db.get(userId);
+  return user?.role === "admin";
+}
+
 /**
  * Resolve @Name mentions in post text to user ids. Matches display names and
  * email local-parts case-insensitively (exact first, then prefix).
@@ -100,6 +108,49 @@ export const list = query({
       ctx,
       posts.filter((post) => !args.topic || post.topic === args.topic),
     );
+  },
+});
+
+/**
+ * Promote or unpromote a community post to the main feed (admins only).
+ * Promoting notifies the post's author.
+ */
+export const setPromoted = mutation({
+  args: { postId: v.id("posts"), promoted: v.boolean() },
+  handler: async (ctx, args) => {
+    if (!(await isAdminUser(ctx))) {
+      throw new Error("Only admins can promote posts.");
+    }
+    const userId = await getAuthUserId(ctx);
+    const post = await ctx.db.get(args.postId);
+    if (post === null) return;
+
+    await ctx.db.patch(args.postId, {
+      promotedAt: args.promoted ? Date.now() : undefined,
+    });
+
+    if (args.promoted && userId !== null && post.authorId !== userId) {
+      await ctx.db.insert("notifications", {
+        recipientId: post.authorId,
+        actorId: userId,
+        type: "promotion",
+        postId: args.postId,
+        read: false,
+      });
+    }
+  },
+});
+
+/** Recently promoted community posts, most recently promoted first. */
+export const promoted = query({
+  args: {},
+  handler: async (ctx) => {
+    const posts = await ctx.db.query("posts").collect();
+    const promotedPosts = posts
+      .filter((post) => post.promotedAt !== undefined)
+      .sort((a, b) => (b.promotedAt ?? 0) - (a.promotedAt ?? 0))
+      .slice(0, 10);
+    return await hydratePosts(ctx, promotedPosts);
   },
 });
 

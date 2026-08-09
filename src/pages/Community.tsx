@@ -37,6 +37,7 @@ function PostsSkeleton() {
 
 export default function Community() {
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [topic, setTopic] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const postParam = searchParams.get("post");
@@ -160,6 +161,7 @@ export default function Community() {
                   post={post as PostItem}
                   currentUserId={user?._id}
                   highlighted={highlightId === post._id}
+                  canPromote={isAdmin}
                 />
               ))}
             </motion.div>

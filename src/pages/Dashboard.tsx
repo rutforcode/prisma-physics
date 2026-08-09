@@ -3,6 +3,7 @@ import { AuroraBackground } from "@/components/AuroraBackground";
 import { GlassFooter } from "@/components/GlassFooter";
 import { ConceptCard } from "@/components/feed/ConceptCard";
 import { ConceptReader } from "@/components/feed/ConceptReader";
+import { PostCard, type PostItem } from "@/components/feed/PostCard";
 import {
   FeedPostCard,
   type FeedPostItem,
@@ -21,6 +22,7 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -63,6 +65,7 @@ export default function Dashboard() {
   const feedPosts = useQuery(api.feedPosts.list);
   const seedFeedPosts = useMutation(api.feedPosts.seed);
   const seededFeedRef = useRef(false);
+  const promotedPosts = useQuery(api.posts.promoted);
   const isAdmin = user?.role === "admin";
 
   // Debounce the search box
@@ -160,6 +163,31 @@ export default function Dashboard() {
               : `${concepts.length} concept${concepts.length === 1 ? "" : "s"} · ${topicCounts?.length ?? 0} topics`}
           </p>
         </div>
+
+        {/* Community picks — promoted posts, surfaced in the feed */}
+        {promotedPosts !== undefined && promotedPosts.length > 0 && (
+          <section className="mt-10">
+            <div className="flex items-center gap-2">
+              <Star className="size-4 text-amber-500" />
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Community picks
+              </h2>
+              <span className="glass-chip rounded-full px-2 py-0.5 text-xs text-muted-foreground">
+                {promotedPosts.length} promoted
+              </span>
+            </div>
+            <div className="mt-4 max-w-3xl space-y-5">
+              {(promotedPosts as PostItem[]).map((post) => (
+                <PostCard
+                  key={post._id}
+                  post={post}
+                  currentUserId={user?._id}
+                  canPromote={isAdmin}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* From the team — admin announcements at the top of the feed */}
         <section className="mt-10">

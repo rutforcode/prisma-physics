@@ -18,7 +18,7 @@ import { MentionText } from "@/lib/mentions";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
-import { Heart, Trash2 } from "lucide-react";
+import { Heart, Star, Trash2 } from "lucide-react";
 import { Link } from "react-router";
 
 export interface MentionRef {
@@ -37,13 +37,18 @@ export function PostCard({
   post,
   currentUserId,
   highlighted = false,
+  canPromote = false,
 }: {
   post: PostItem;
   currentUserId: Id<"users"> | null | undefined;
   highlighted?: boolean;
+  canPromote?: boolean;
 }) {
   const toggleLike = useMutation(api.posts.toggleLike);
   const removePost = useMutation(api.posts.remove);
+  const setPromoted = useMutation(api.posts.setPromoted);
+
+  const isPromoted = post.promotedAt !== undefined;
 
   const liked = currentUserId !== undefined && currentUserId !== null
     ? post.likedBy.includes(currentUserId)
@@ -100,6 +105,15 @@ export function PostCard({
           </div>
         </Link>
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          {isPromoted && (
+            <Badge
+              variant="outline"
+              className="rounded-full border-amber-300/60 bg-amber-500/10 text-amber-700"
+            >
+              <Star className="size-3 fill-amber-500" />
+              Promoted
+            </Badge>
+          )}
           {topic && (
             <Badge
               variant="outline"
@@ -181,6 +195,28 @@ export function PostCard({
             <span>Like</span>
           )}
         </motion.button>
+
+        {canPromote && (
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.8 }}
+            onClick={() =>
+              void setPromoted({ postId: post._id, promoted: !isPromoted })
+            }
+            aria-label={isPromoted ? "Remove from feed" : "Promote to feed"}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-medium transition-colors",
+              isPromoted
+                ? "bg-amber-500/10 text-amber-600"
+                : "text-muted-foreground hover:bg-white/50 hover:text-amber-600",
+            )}
+          >
+            <Star
+              className={cn("size-4 transition-transform", isPromoted && "fill-amber-500")}
+            />
+            {isPromoted ? "Promoted" : "Promote"}
+          </motion.button>
+        )}
       </div>
     </article>
   );

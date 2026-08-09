@@ -10,12 +10,12 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
-import { Bell, CheckCheck, Heart, MessageCircle } from "lucide-react";
+import { Bell, CheckCheck, Heart, MessageCircle, Star } from "lucide-react";
 import { useNavigate } from "react-router";
 
 interface NotificationItem {
   _id: Id<"notifications">;
-  type: "mention" | "like";
+  type: "mention" | "like" | "promotion";
   read: boolean;
   postId: Id<"posts">;
   _creationTime: number;
@@ -131,6 +131,14 @@ export function NotificationBell() {
                             “{item.postTitle}”
                           </span>
                         </>
+                      ) : item.type === "promotion" ? (
+                        <>
+                          promoted your post{" "}
+                          <span className="font-medium text-primary">
+                            “{item.postTitle}”
+                          </span>{" "}
+                          to the feed
+                        </>
                       ) : (
                         <>liked your post</>
                       )}
@@ -138,6 +146,8 @@ export function NotificationBell() {
                     <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       {item.type === "mention" ? (
                         <MessageCircle className="size-3" />
+                      ) : item.type === "promotion" ? (
+                        <Star className="size-3 text-amber-500" />
                       ) : (
                         <Heart className="size-3" />
                       )}

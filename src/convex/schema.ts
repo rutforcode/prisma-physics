@@ -77,13 +77,18 @@ const schema = defineSchema(
       imageStorageId: v.optional(v.id("_storage")),
       likedBy: v.array(v.id("users")),
       mentionedUserIds: v.optional(v.array(v.id("users"))),
+      promotedAt: v.optional(v.number()),
     }).index("by_author", ["authorId"]),
 
     // Community activity notifications (mentions + likes)
     notifications: defineTable({
       recipientId: v.id("users"),
       actorId: v.id("users"),
-      type: v.union(v.literal("mention"), v.literal("like")),
+      type: v.union(
+        v.literal("mention"),
+        v.literal("like"),
+        v.literal("promotion"),
+      ),
       postId: v.id("posts"),
       read: v.boolean(),
     })
