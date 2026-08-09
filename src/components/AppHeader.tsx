@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import { Atom, ChevronDown, LogOut, Search, UserRound } from "lucide-react";
+import { Atom, ChevronDown, LogOut, Search, ShieldCheck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 
 const NAV_ITEMS = [
@@ -110,6 +110,15 @@ export function AppHeader({
               <UserRound className="mr-2 size-4" />
               Your profile
             </DropdownMenuItem>
+            {user?.role === "admin" && (
+              <DropdownMenuItem
+                onClick={() => navigate("/admin")}
+                className="cursor-pointer"
+              >
+                <ShieldCheck className="mr-2 size-4" />
+                Admin overview
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleSignOut}

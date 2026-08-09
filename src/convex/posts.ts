@@ -280,7 +280,7 @@ export const toggleLike = mutation({
   },
 });
 
-/** Delete a post — only the author may delete it. */
+/** Delete a post — the author, or an admin moderating the community. */
 export const remove = mutation({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
@@ -290,7 +290,7 @@ export const remove = mutation({
     }
     const post = await ctx.db.get(args.postId);
     if (post === null) return;
-    if (post.authorId !== userId) {
+    if (post.authorId !== userId && !(await isAdminUser(ctx))) {
       throw new Error("You can only delete your own posts.");
     }
     if (post.imageStorageId) {

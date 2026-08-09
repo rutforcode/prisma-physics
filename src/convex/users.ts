@@ -101,6 +101,37 @@ export const all = query({
 });
 
 /**
+ * Admin overview counts — users, curators, admins, posts, feed posts, and
+ * promoted community posts. Admins only; powers the /admin page.
+ */
+export const stats = query({
+  args: {},
+  handler: async (ctx) => {
+    const me = await getAuthUserId(ctx);
+    if (me === null) {
+      throw new Error("You must be signed in.");
+    }
+    const self = await ctx.db.get(me);
+    if (self?.role !== "admin") {
+      throw new Error("Only admins can view overview stats.");
+    }
+    const [users, posts, feedPosts] = await Promise.all([
+      ctx.db.query("users").collect(),
+      ctx.db.query("posts").collect(),
+      ctx.db.query("feedPosts").collect(),
+    ]);
+    return {
+      users: users.length,
+      curators: users.filter((u) => u.canPostFeed === true).length,
+      admins: users.filter((u) => u.role === "admin").length,
+      posts: posts.length,
+      feedPosts: feedPosts.length,
+      promoted: posts.filter((p) => p.promotedAt !== undefined).length,
+    };
+  },
+});
+
+/**
  * Search for classmates to @-mention in posts (name or email prefix match).
  */
 export const search = query({

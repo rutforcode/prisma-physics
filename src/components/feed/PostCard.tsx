@@ -38,11 +38,14 @@ export function PostCard({
   currentUserId,
   highlighted = false,
   canPromote = false,
+  canDelete = false,
 }: {
   post: PostItem;
   currentUserId: Id<"users"> | null | undefined;
   highlighted?: boolean;
   canPromote?: boolean;
+  /** Admin moderation: allow deleting posts the user did not author. */
+  canDelete?: boolean;
 }) {
   const toggleLike = useMutation(api.posts.toggleLike);
   const removePost = useMutation(api.posts.remove);
@@ -123,7 +126,7 @@ export function PostCard({
               {topic.label}
             </Badge>
           )}
-          {isOwn && (
+          {(isOwn || canDelete) && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <button
