@@ -11,7 +11,8 @@ import { TOPICS } from "@/lib/topic-meta";
 import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
 import { MessagesSquare, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 
 function PostsSkeleton() {
   return (
@@ -37,8 +38,34 @@ function PostsSkeleton() {
 export default function Community() {
   const { user } = useAuth();
   const [topic, setTopic] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const postParam = searchParams.get("post");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const posts = useQuery(api.posts.list, { topic: topic ?? undefined });
   const isLoading = posts === undefined;
+
+  // Deep link from a notification: reveal the topic filter, scroll to the
+  // post, flash a highlight ring, then clean the URL.
+  useEffect(() => {
+    if (!postParam) return;
+    setTopic(null);
+    const scrollTimer = setTimeout(() => {
+      document
+        .getElementById(postParam)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightId(postParam);
+    }, 250);
+    const clearTimer = setTimeout(() => setHighlightId(null), 3400);
+    const urlTimer = setTimeout(
+      () => setSearchParams({}, { replace: true }),
+      1500,
+    );
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+      clearTimeout(urlTimer);
+    };
+  }, [postParam, setSearchParams]);
 
   return (
     <div className="flex min-h-screen flex-col text-foreground">
@@ -132,6 +159,7 @@ export default function Community() {
                   key={post._id}
                   post={post as PostItem}
                   currentUserId={user?._id}
+                  highlighted={highlightId === post._id}
                 />
               ))}
             </motion.div>

@@ -1,7 +1,45 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { topicValidator } from "./schema";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, QueryCtx } from "./_generated/server";
+
+/**
+ * Resolve @Name mentions in post text to user ids. Matches display names and
+ * email local-parts case-insensitively (exact first, then prefix).
+ */
+async function resolveMentions(
+  ctx: QueryCtx,
+  text: string,
+): Promise<Id<"users">[]> {
+  const users = await ctx.db.query("users").collect();
+  const candidates = users.filter((u) => u.name || u.email);
+  const resolved = new Map<Id<"users">, Id<"users">>();
+
+  const mentionRegex =
+    /(?:^|[\s(])@([A-Za-z0-9][A-Za-z0-9._ -]{0,39})(?=[\s.,!?;:)'")\]]|$)/g;
+  let match: RegExpExecArray | null;
+  while ((match = mentionRegex.exec(text)) !== null) {
+    const raw = match[1].trim();
+    if (!raw) continue;
+    const lower = raw.toLowerCase();
+
+    const exact = candidates.find(
+      (u) =>
+        (u.name && u.name.toLowerCase() === lower) ||
+        (u.email && u.email.split("@")[0].toLowerCase() === lower),
+    );
+    const prefix = exact
+      ? exact
+      : candidates.find(
+          (u) =>
+            (u.name && u.name.toLowerCase().startsWith(lower)) ||
+            (u.email && u.email.split("@")[0].toLowerCase().startsWith(lower)),
+        );
+    if (prefix) resolved.set(prefix._id, prefix._id);
+  }
+  return [...resolved.values()];
+}
 
 /**
  * Generate a signed upload URL for post images (Convex storage).
@@ -66,7 +104,7 @@ export const create = mutation({
     if (title.length > 120) {
       throw new Error("Keep the title under 120 characters.");
     }
-    return await ctx.db.insert("posts", {
+    const postId = await ctx.db.insert("posts", {
       authorId: userId,
       title,
       body,
@@ -74,6 +112,23 @@ export const create = mutation({
       imageStorageId: args.imageStorageId,
       likedBy: [],
     });
+
+    // Resolve @mentions and notify everyone mentioned (except the author)
+    const mentionedUserIds = await resolveMentions(ctx, `${title} ${body}`);
+    if (mentionedUserIds.length > 0) {
+      await ctx.db.patch(postId, { mentionedUserIds });
+      for (const mentionedId of mentionedUserIds) {
+        if (mentionedId === userId) continue;
+        await ctx.db.insert("notifications", {
+          recipientId: mentionedId,
+          actorId: userId,
+          type: "mention",
+          postId,
+          read: false,
+        });
+      }
+    }
+    return postId;
   },
 });
 
@@ -94,6 +149,17 @@ export const toggleLike = mutation({
         ? post.likedBy.filter((id) => id !== userId)
         : [...post.likedBy, userId],
     });
+
+    // Notify the author when their post is liked (not on un-like, not self)
+    if (!liked && post.authorId !== userId) {
+      await ctx.db.insert("notifications", {
+        recipientId: post.authorId,
+        actorId: userId,
+        type: "like",
+        postId: args.postId,
+        read: false,
+      });
+    }
   },
 });
 

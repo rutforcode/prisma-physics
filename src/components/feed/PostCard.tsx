@@ -14,6 +14,7 @@ import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { topicMeta } from "@/lib/topic-meta";
+import { MentionText } from "@/lib/mentions";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
@@ -28,9 +29,11 @@ export interface PostItem extends Doc<"posts"> {
 export function PostCard({
   post,
   currentUserId,
+  highlighted = false,
 }: {
   post: PostItem;
   currentUserId: Id<"users"> | null | undefined;
+  highlighted?: boolean;
 }) {
   const toggleLike = useMutation(api.posts.toggleLike);
   const removePost = useMutation(api.posts.remove);
@@ -51,7 +54,13 @@ export function PostCard({
     .toUpperCase();
 
   return (
-    <article className="glass rounded-3xl p-6 transition-shadow hover:shadow-lg md:p-7">
+    <article
+      id={post._id}
+      className={cn(
+        "glass rounded-3xl p-6 transition-shadow hover:shadow-lg md:p-7",
+        highlighted && "ring-2 ring-primary/60",
+      )}
+    >
       {/* Author row */}
       <div className="flex items-center gap-3">
         {post.authorImage ? (
@@ -122,7 +131,7 @@ export function PostCard({
         {post.title}
       </h3>
       <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85">
-        {post.body}
+        <MentionText text={post.body} />
       </p>
 
       {post.imageUrl && (

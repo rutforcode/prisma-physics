@@ -67,7 +67,19 @@ const schema = defineSchema(
       topic: v.optional(topicValidator),
       imageStorageId: v.optional(v.id("_storage")),
       likedBy: v.array(v.id("users")),
+      mentionedUserIds: v.optional(v.array(v.id("users"))),
     }).index("by_author", ["authorId"]),
+
+    // Community activity notifications (mentions + likes)
+    notifications: defineTable({
+      recipientId: v.id("users"),
+      actorId: v.id("users"),
+      type: v.union(v.literal("mention"), v.literal("like")),
+      postId: v.id("posts"),
+      read: v.boolean(),
+    })
+      .index("by_recipient", ["recipientId"])
+      .index("by_recipient_read", ["recipientId", "read"]),
 
     // Physics concept explanations shown in the study feed
     concepts: defineTable({

@@ -1,3 +1,4 @@
+import { NotificationBell } from "@/components/feed/NotificationBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,8 +81,10 @@ export function AppHeader({
           </div>
         )}
 
+        <div className="flex shrink-0 items-center gap-2">
+        <NotificationBell />
         <DropdownMenu>
-          <DropdownMenuTrigger className="glass-chip flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50">
+          <DropdownMenuTrigger className="glass-chip flex items-center gap-2 rounded-xl px-2 py-1.5 outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/50">
             <span className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-sky-400/40 to-indigo-500/30 text-xs font-bold text-primary">
               {initial}
             </span>
@@ -109,6 +112,7 @@ export function AppHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
     </header>
   );
