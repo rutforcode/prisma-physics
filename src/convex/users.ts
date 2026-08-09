@@ -21,6 +21,24 @@ export const currentUser = query({
 });
 
 /**
+ * Public profile info for a user id (used on profile pages).
+ */
+export const getById = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db.get(userId);
+    if (user === null) return null;
+    return {
+      _id: user._id,
+      name: user.name ?? null,
+      email: user.email ?? null,
+      image: user.image ?? null,
+      createdAt: user._creationTime,
+    };
+  },
+});
+
+/**
  * Search for classmates to @-mention in posts (name or email prefix match).
  */
 export const search = query({

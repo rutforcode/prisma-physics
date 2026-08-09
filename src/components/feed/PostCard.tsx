@@ -19,11 +19,18 @@ import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 import { Heart, Trash2 } from "lucide-react";
+import { Link } from "react-router";
+
+export interface MentionRef {
+  userId: string;
+  name: string;
+}
 
 export interface PostItem extends Doc<"posts"> {
   authorName: string;
   authorImage: string | null;
   imageUrl: string | null;
+  mentionedUsers: MentionRef[];
 }
 
 export function PostCard({
@@ -45,6 +52,9 @@ export function PostCard({
     ? post.authorId === currentUserId
     : false;
   const topic = post.topic ? topicMeta(post.topic) : null;
+  const mentionMap = Object.fromEntries(
+    post.mentionedUsers.map((m) => [m.name, m.userId]),
+  );
 
   const initials = post.authorName
     .split(" ")
@@ -63,25 +73,32 @@ export function PostCard({
     >
       {/* Author row */}
       <div className="flex items-center gap-3">
-        {post.authorImage ? (
-          <img
-            src={post.authorImage}
-            alt={post.authorName}
-            className="size-10 rounded-full object-cover ring-2 ring-white/70"
-          />
-        ) : (
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-400/40 to-indigo-500/30 text-xs font-bold text-primary ring-2 ring-white/70">
-            {initials || "S"}
-          </span>
-        )}
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{post.authorName}</p>
-          <p className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(post._creationTime), {
-              addSuffix: true,
-            })}
-          </p>
-        </div>
+        <Link
+          to={`/profile?user=${post.authorId}`}
+          className="group/author flex min-w-0 items-center gap-3"
+        >
+          {post.authorImage ? (
+            <img
+              src={post.authorImage}
+              alt={post.authorName}
+              className="size-10 shrink-0 rounded-full object-cover ring-2 ring-white/70 transition-transform group-hover/author:scale-105"
+            />
+          ) : (
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-400/40 to-indigo-500/30 text-xs font-bold text-primary ring-2 ring-white/70">
+              {initials || "S"}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold transition-colors group-hover/author:text-primary">
+              {post.authorName}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatDistanceToNow(new Date(post._creationTime), {
+                addSuffix: true,
+              })}
+            </p>
+          </div>
+        </Link>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {topic && (
             <Badge
@@ -131,7 +148,7 @@ export function PostCard({
         {post.title}
       </h3>
       <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85">
-        <MentionText text={post.body} />
+        <MentionText text={post.body} mentionMap={mentionMap} />
       </p>
 
       {post.imageUrl && (

@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { topicValidator } from "./schema";
 import { mutation, query, QueryCtx } from "./_generated/server";
 
@@ -57,29 +57,75 @@ export const generateUploadUrl = mutation({
   },
 });
 
+/**
+ * Attach author info, image URLs, and resolved mention references to posts.
+ */
+async function hydratePosts(ctx: QueryCtx, posts: Doc<"posts">[]) {
+  const result = [];
+  for (const post of posts) {
+    const author = await ctx.db.get(post.authorId);
+    const imageUrl = post.imageStorageId
+      ? await ctx.storage.getUrl(post.imageStorageId)
+      : null;
+
+    const mentionedUsers: { userId: Id<"users">; name: string }[] = [];
+    for (const id of post.mentionedUserIds ?? []) {
+      const user = await ctx.db.get(id);
+      if (user && (user.name || user.email)) {
+        mentionedUsers.push({
+          userId: id,
+          name: user.name ?? user.email!.split("@")[0]!,
+        });
+      }
+    }
+
+    result.push({
+      ...post,
+      authorName: author?.name ?? author?.email?.split("@")[0] ?? "Student",
+      authorImage: author?.image ?? null,
+      imageUrl,
+      mentionedUsers,
+    });
+  }
+  return result;
+}
+
 /** List posts newest-first, joined with author info and image URLs. */
 export const list = query({
   args: { topic: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const posts = await ctx.db.query("posts").collect();
     posts.sort((a, b) => b._creationTime - a._creationTime);
+    return await hydratePosts(
+      ctx,
+      posts.filter((post) => !args.topic || post.topic === args.topic),
+    );
+  },
+});
 
-    const result = [];
-    for (const post of posts) {
-      if (args.topic && post.topic !== args.topic) continue;
-      const author = await ctx.db.get(post.authorId);
-      const imageUrl = post.imageStorageId
-        ? await ctx.storage.getUrl(post.imageStorageId)
-        : null;
-      result.push({
-        ...post,
-        authorName:
-          author?.name ?? author?.email?.split("@")[0] ?? "Student",
-        authorImage: author?.image ?? null,
-        imageUrl,
-      });
-    }
-    return result;
+/** Posts authored by a given user, newest first (for profile pages). */
+export const byAuthor = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_author", (q) => q.eq("authorId", userId))
+      .collect();
+    posts.sort((a, b) => b._creationTime - a._creationTime);
+    return await hydratePosts(ctx, posts);
+  },
+});
+
+/** Posts in which a given user is @-mentioned, newest first (for profiles). */
+export const mentionsOf = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const posts = await ctx.db.query("posts").collect();
+    const mentioned = posts.filter((post) =>
+      (post.mentionedUserIds ?? []).includes(userId),
+    );
+    mentioned.sort((a, b) => b._creationTime - a._creationTime);
+    return await hydratePosts(ctx, mentioned.slice(0, 50));
   },
 });
 
