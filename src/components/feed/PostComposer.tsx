@@ -347,7 +347,7 @@ export function PostComposer() {
               align="start"
               side="top"
               sideOffset={8}
-              className="w-[21rem] max-w-[calc(100vw-2rem)] rounded-2xl p-3 shadow-xl"
+              className="w-[23rem] max-w-[calc(100vw-2rem)] rounded-2xl p-3 shadow-xl"
             >
               <MathKeyboard
                 onInsert={insertTex}
