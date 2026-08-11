@@ -43,7 +43,9 @@ export default function Community() {
   const [sort, setSort] = useState<"newest" | "oldest" | "likes">("newest");
   const [searchParams, setSearchParams] = useSearchParams();
   const postParam = searchParams.get("post");
+  const editParam = searchParams.get("edit");
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<PostItem | null>(null);
   const posts = useQuery(api.posts.list, {
     topic: topic ?? undefined,
     sort,
@@ -73,6 +75,36 @@ export default function Community() {
     };
   }, [postParam, setSearchParams]);
 
+  // Deep link to edit (?edit=POST_ID, e.g. from a profile page): clear any
+  // topic filter, open the post in the composer, scroll the composer into
+  // view, then clean the URL once the post is visible.
+  useEffect(() => {
+    if (!editParam || posts === undefined) return;
+    if (topic !== null) {
+      setTopic(null);
+      return;
+    }
+    const target = posts.find((p) => p._id === editParam);
+    if (!target) return;
+    setEditingPost(target as PostItem);
+    const scrollTimer = setTimeout(() => {
+      document
+        .getElementById("post-composer")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setHighlightId(editParam);
+    }, 250);
+    const clearTimer = setTimeout(() => setHighlightId(null), 3400);
+    const urlTimer = setTimeout(
+      () => setSearchParams({}, { replace: true }),
+      1500,
+    );
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+      clearTimeout(urlTimer);
+    };
+  }, [editParam, posts, topic, setSearchParams]);
+
   return (
     <div className="flex min-h-screen flex-col text-foreground">
       <AuroraBackground />
@@ -95,7 +127,13 @@ export default function Community() {
         </div>
 
         <div className="mt-8 space-y-8">
-          <PostComposer />
+          <div id="post-composer" className="scroll-mt-24">
+            <PostComposer
+              key={editingPost?._id ?? "new"}
+              initialPost={editingPost}
+              onCancel={() => setEditingPost(null)}
+            />
+          </div>
 
           {/* Topic filter + sort */}
           <div className="flex flex-wrap items-center gap-2">
@@ -178,6 +216,16 @@ export default function Community() {
                   currentUserId={user?._id}
                   highlighted={highlightId === post._id}
                   canPromote={isAdmin}
+                  canEdit={user?._id === post.authorId || isAdmin}
+                  onEdit={() => {
+                    setEditingPost(post as PostItem);
+                    document
+                      .getElementById("post-composer")
+                      ?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                  }}
                 />
               ))}
             </motion.div>

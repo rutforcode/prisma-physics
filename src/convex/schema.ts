@@ -91,6 +91,7 @@ const schema = defineSchema(
       likedBy: v.array(v.id("users")),
       mentionedUserIds: v.optional(v.array(v.id("users"))),
       promotedAt: v.optional(v.number()),
+      editedAt: v.optional(v.number()), // set when the author edits the post
     }).index("by_author", ["authorId"]),
 
     // Community activity notifications (mentions + likes)

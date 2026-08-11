@@ -272,6 +272,85 @@ export const create = mutation({
   },
 });
 
+/**
+ * Edit a community post (the author, or an admin moderating the community).
+ * Replaces title/body/topic/images wholesale; images dropped from the new
+ * array are garbage-collected from storage. Mentions are re-resolved from
+ * the new text so @-tags stay accurate.
+ */
+export const update = mutation({
+  args: {
+    postId: v.id("posts"),
+    title: v.string(),
+    body: v.string(),
+    topic: v.optional(topicValidator),
+    images: v.optional(v.array(v.id("_storage"))),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("You must be signed in.");
+    }
+    const post = await ctx.db.get(args.postId);
+    if (post === null) {
+      throw new Error("Post not found.");
+    }
+    if (post.authorId !== userId && !(await isAdminUser(ctx))) {
+      throw new Error("You can only edit your own posts.");
+    }
+    const title = args.title.trim();
+    const body = args.body.trim();
+    if (title.length === 0 || body.length === 0) {
+      throw new Error("Give your post a title and some text.");
+    }
+    if (title.length > 120) {
+      throw new Error("Keep the title under 120 characters.");
+    }
+    const images = args.images ?? [];
+    if (images.length > MAX_IMAGES) {
+      throw new Error(`A post can have at most ${MAX_IMAGES} images.`);
+    }
+    if (countNonFormulaChars(body) > MAX_BODY_CHARS) {
+      throw new Error(
+        `Keep the post under ${MAX_BODY_CHARS.toLocaleString()} characters (formulas don't count).`,
+      );
+    }
+
+    // Free storage for images the author removed.
+    const removed = postImages(post).filter((id) => !images.includes(id));
+    for (const id of removed) {
+      try {
+        await ctx.storage.delete(id);
+      } catch {
+        // Already gone — nothing to do.
+      }
+    }
+
+    await ctx.db.patch(args.postId, {
+      title,
+      body,
+      topic: args.topic || undefined,
+      images: images.length > 0 ? images : undefined,
+      editedAt: Date.now(),
+    });
+
+    // Re-resolve @mentions from the new text and notify anyone newly mentioned.
+    const mentionedUserIds = await resolveMentions(ctx, `${title} ${body}`);
+    const previous = post.mentionedUserIds ?? [];
+    await ctx.db.patch(args.postId, { mentionedUserIds });
+    for (const mentionedId of mentionedUserIds) {
+      if (mentionedId === userId || previous.includes(mentionedId)) continue;
+      await ctx.db.insert("notifications", {
+        recipientId: mentionedId,
+        actorId: userId,
+        type: "mention",
+        postId: args.postId,
+        read: false,
+      });
+    }
+  },
+});
+
 /** Toggle the current user's like on a post. */
 export const toggleLike = mutation({
   args: { postId: v.id("posts") },

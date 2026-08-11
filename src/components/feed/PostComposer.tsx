@@ -1,5 +1,6 @@
 import { MathKeyboard } from "@/components/MathKeyboard";
 import { MixedBody } from "@/components/feed/MixedBody";
+import type { PostItem } from "@/components/feed/PostCard";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ import {
   Eye,
   ImagePlus,
   Loader2,
+  Pencil,
   Send,
   Sigma,
   TextCursorInput,
@@ -37,13 +39,32 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-export function PostComposer() {
+export function PostComposer({
+  initialPost,
+  onCancel,
+}: {
+  initialPost?: PostItem | null;
+  onCancel?: () => void;
+} = {}) {
+  const isEditing = initialPost != null;
+
   const createPost = useMutation(api.posts.create);
+  const updatePost = useMutation(api.posts.update);
   const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
 
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [topic, setTopic] = useState<TopicId | undefined>(undefined);
+  const [title, setTitle] = useState(initialPost?.title ?? "");
+  const [body, setBody] = useState(initialPost?.body ?? "");
+  const [topic, setTopic] = useState<TopicId | undefined>(
+    initialPost?.topic ?? undefined,
+  );
+  const [existingImages, setExistingImages] = useState<
+    { id: Id<"_storage">; url: string | null }[]
+  >(() =>
+    (initialPost?.images ?? []).map((id, i) => ({
+      id,
+      url: initialPost?.imageUrls[i] ?? null,
+    })),
+  );
   const [files, setFiles] = useState<File[]>([]);
   const [filePreviews, setFilePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,7 +99,13 @@ export function PostComposer() {
   );
   const overLimit = chars > MAX_BODY_CHARS;
   const nearLimit = chars >= MAX_BODY_CHARS * 0.9;
-  const imageCount = files.length;
+  const imageCount = existingImages.length + files.length;
+
+  // Images shown in the live preview: existing + newly attached.
+  const previewImages = useMemo(
+    () => [...existingImages.map((img) => img.url), ...filePreviews],
+    [existingImages, filePreviews],
+  );
 
   const handleFilesChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const chosen = Array.from(e.target.files ?? []);
@@ -115,8 +142,8 @@ export function PostComposer() {
     }
   };
 
-  // Live preview shows once the post contains math: $...$ delimiters, \(...\)
-  // spans, or bare LaTeX commands (e.g. \alpha typed by hand).
+  // Live preview shows once the post contains math: $...$ delimiters, \\(...\\)
+  // spans, or bare LaTeX commands (e.g. \\alpha typed by hand).
   const hasMath =
     body.includes("$") ||
     body.includes("\\(") ||
@@ -149,7 +176,7 @@ export function PostComposer() {
     });
   };
 
-  /** Embed an image at the caret with an [img:N] marker. */
+  /** Embed an image at the caret with an [img:N] marker (N = array index). */
   const insertImageMarker = (idx: number) => {
     const el = bodyRef.current;
     if (!el) return;
@@ -225,21 +252,34 @@ export function PostComposer() {
         };
         storageIds.push(storageId);
       }
+      const images = [...existingImages.map((img) => img.id), ...storageIds];
 
-      await createPost({
-        title: title.trim(),
-        body: body.trim(),
-        topic,
-        images: storageIds,
-      });
+      if (isEditing && initialPost) {
+        await updatePost({
+          postId: initialPost._id,
+          title: title.trim(),
+          body: body.trim(),
+          topic,
+          images,
+        });
+        onCancel?.();
+      } else {
+        await createPost({
+          title: title.trim(),
+          body: body.trim(),
+          topic,
+          images: storageIds,
+        });
 
-      setTitle("");
-      setBody("");
-      setTopic(undefined);
-      setFiles([]);
-      setMentionOpen(false);
-      setMentionQuery("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+        setTitle("");
+        setBody("");
+        setTopic(undefined);
+        setFiles([]);
+        setExistingImages([]);
+        setMentionOpen(false);
+        setMentionQuery("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
     } catch (err) {
       console.error("Post error:", err);
       setError(err instanceof Error ? err.message : "Could not publish your post.");
@@ -249,12 +289,32 @@ export function PostComposer() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="glass rounded-3xl p-6 md:p-7">
+    <form
+      onSubmit={handleSubmit}
+      className={cn(
+        "glass rounded-3xl p-6 md:p-7",
+        isEditing && "border-primary/20",
+      )}
+    >
       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
         <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-400/30 to-indigo-500/20 text-primary">
-          <Send className="size-4" />
+          {isEditing ? (
+            <Pencil className="size-4" />
+          ) : (
+            <Send className="size-4" />
+          )}
         </span>
-        Share with your classmates
+        {isEditing ? "Edit your post" : "Share with your classmates"}
+        {isEditing && onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="ml-auto flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+            aria-label="Cancel editing"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
 
       <input
@@ -349,6 +409,12 @@ export function PostComposer() {
             )}
           </div>
         )}
+        {overLimit && (
+          <p className="mt-1 text-xs text-destructive">
+            Over the {MAX_BODY_CHARS.toLocaleString()}-character limit —
+            delete some text or move more into $...$ formulas.
+          </p>
+        )}
       </div>
 
       {(hasMath || imageCount > 0) && (
@@ -365,7 +431,7 @@ export function PostComposer() {
             )}
             <MixedBody
               text={body}
-              imageUrls={filePreviews}
+              imageUrls={previewImages}
               className="mt-1 text-sm leading-relaxed text-foreground/85"
             />
           </div>
@@ -374,6 +440,43 @@ export function PostComposer() {
 
       {imageCount > 0 && (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+          {existingImages.map((img) => (
+            <div
+              key={img.id}
+              className="group relative aspect-video overflow-hidden rounded-xl ring-1 ring-white/70"
+            >
+              <img
+                src={img.url ?? undefined}
+                alt="Attachment"
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setExistingImages((prev) =>
+                    prev.filter((x) => x.id !== img.id),
+                  )
+                }
+                className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-white/80 text-foreground shadow backdrop-blur transition-colors hover:bg-white"
+                aria-label="Remove image"
+              >
+                <X className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  insertImageMarker(
+                    existingImages.findIndex((x) => x.id === img.id),
+                  )
+                }
+                className="absolute bottom-1.5 left-1.5 flex h-6 items-center gap-1 rounded-full bg-white/85 px-2 text-[11px] font-medium text-foreground opacity-0 shadow backdrop-blur transition-opacity group-hover:opacity-100"
+                title="Place this image in the text at the cursor"
+              >
+                <TextCursorInput className="size-3.5" />
+                Inline
+              </button>
+            </div>
+          ))}
           {files.map((f, i) => (
             <div
               key={i}
@@ -394,7 +497,7 @@ export function PostComposer() {
               </button>
               <button
                 type="button"
-                onClick={() => insertImageMarker(i)}
+                onClick={() => insertImageMarker(existingImages.length + i)}
                 className="absolute bottom-1.5 left-1.5 flex h-6 items-center gap-1 rounded-full bg-white/85 px-2 text-[11px] font-medium text-foreground opacity-0 shadow backdrop-blur transition-opacity group-hover:opacity-100"
                 title="Place this image in the text at the cursor"
               >
@@ -455,7 +558,7 @@ export function PostComposer() {
             disabled={imageCount >= MAX_IMAGES}
           >
             <ImagePlus className="size-4" />
-            Attach images
+            {isEditing ? "Add image" : "Attach images"}
           </Button>
           {imageCount > 0 && (
             <span className="text-xs tabular-nums text-muted-foreground">
@@ -486,18 +589,18 @@ export function PostComposer() {
 
         <Button
           type="submit"
-          disabled={!title.trim() || !body.trim() || isSubmitting}
+          disabled={!title.trim() || !body.trim() || isSubmitting || overLimit}
           className="rounded-xl"
         >
           {isSubmitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Publishing…
+              {isEditing ? "Saving…" : "Publishing…"}
             </>
           ) : (
             <>
               <Send className="size-4" />
-              Publish post
+              {isEditing ? "Save changes" : "Publish post"}
             </>
           )}
         </Button>

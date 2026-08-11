@@ -21,7 +21,7 @@ import {
   PencilLine,
 } from "lucide-react";
 import { useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
 function AvatarEditor({
   image,
@@ -136,6 +136,7 @@ function ProfileSkeleton() {
 export default function Profile() {
   const { user: me } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const paramUser = searchParams.get("user");
   const isSelf = !paramUser || paramUser === me?._id;
   const profileId: Id<"users"> | undefined = paramUser
@@ -354,6 +355,8 @@ export default function Profile() {
                 key={post._id}
                 post={post}
                 currentUserId={me?._id}
+                canEdit={post.authorId === me?._id}
+                onEdit={() => navigate(`/community?edit=${post._id}`)}
               />
             ))
           )}

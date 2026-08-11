@@ -18,7 +18,7 @@ import { topicMeta } from "@/lib/topic-meta";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
-import { Heart, Star, Trash2 } from "lucide-react";
+import { Heart, Pencil, Star, Trash2 } from "lucide-react";
 import { Link } from "react-router";
 
 export interface MentionRef {
@@ -40,6 +40,8 @@ export function PostCard({
   highlighted = false,
   canPromote = false,
   canDelete = false,
+  canEdit = false,
+  onEdit,
 }: {
   post: PostItem;
   currentUserId: Id<"users"> | null | undefined;
@@ -47,6 +49,9 @@ export function PostCard({
   canPromote?: boolean;
   /** Admin moderation: allow deleting posts the user did not author. */
   canDelete?: boolean;
+  /** Allow the author (or an admin) to open this post in the composer. */
+  canEdit?: boolean;
+  onEdit?: () => void;
 }) {
   const toggleLike = useMutation(api.posts.toggleLike);
   const removePost = useMutation(api.posts.remove);
@@ -105,6 +110,7 @@ export function PostCard({
               {formatDistanceToNow(new Date(post._creationTime), {
                 addSuffix: true,
               })}
+              {post.editedAt && <span> · edited</span>}
             </p>
           </div>
         </Link>
@@ -126,6 +132,16 @@ export function PostCard({
               <topic.icon className="size-3" />
               {topic.label}
             </Badge>
+          )}
+          {canEdit && onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+              aria-label="Edit post"
+            >
+              <Pencil className="size-4" />
+            </button>
           )}
           {(isOwn || canDelete) && (
             <AlertDialog>

@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router";
 import {
   Crown,
   Lock,
@@ -55,6 +56,7 @@ function StatCard({
 
 export default function Admin() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
 
   // Admin-gated queries are skipped entirely for non-admins
@@ -230,6 +232,10 @@ export default function Admin() {
                         currentUserId={user?._id}
                         canPromote={isAdmin}
                         canDelete={isAdmin}
+                        canEdit={isAdmin}
+                        onEdit={() =>
+                          navigate(`/community?edit=${post._id}`)
+                        }
                       />
                     ))}
                 </div>
