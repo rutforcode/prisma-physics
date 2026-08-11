@@ -1,7 +1,6 @@
-import { MathText } from "@/components/MathJax";
 import { IMG_MARKER_REGEX } from "@/lib/inline-images";
-import { MentionText } from "@/lib/mentions";
 import { cn } from "@/lib/utils";
+import { MarkupText } from "@/components/feed/MarkupText";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -166,12 +165,10 @@ export function MixedBody({
   );
 
   return (
-    <div className={cn("whitespace-pre-wrap", className)}>
+    <div className={cn(className)}>
       {parts.map((part, i) =>
         typeof part === "string" ? (
-          <MathText key={`text-${i}`}>
-            <MentionText text={part} mentionMap={mentionMap} />
-          </MathText>
+          <MarkupText key={`text-${i}`} text={part} mentionMap={mentionMap} />
         ) : (
           <Fragment key={`node-${i}`}>{part}</Fragment>
         ),

@@ -92,6 +92,15 @@ const schema = defineSchema(
       mentionedUserIds: v.optional(v.array(v.id("users"))),
       promotedAt: v.optional(v.number()),
       editedAt: v.optional(v.number()), // set when the author edits the post
+      // Word-import / draft lifecycle (drafts are visible only to their author)
+      status: v.optional(v.union(v.literal("draft"), v.literal("published"))),
+      tags: v.optional(v.array(v.string())),
+      description: v.optional(v.string()),
+      difficulty: v.optional(
+        v.union(v.literal("intro"), v.literal("intermediate"), v.literal("advanced")),
+      ),
+      sourceDocument: v.optional(v.id("_storage")), // original imported .docx
+      importedFrom: v.optional(v.string()), // original file name
     }).index("by_author", ["authorId"]),
 
     // Snapshot of every feed announcement edit (powers the edit-history UI)

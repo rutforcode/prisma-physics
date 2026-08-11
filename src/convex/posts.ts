@@ -141,19 +141,31 @@ async function hydratePosts(ctx: QueryCtx, posts: Doc<"posts">[]) {
   return result;
 }
 
-/** List posts with optional topic filter and sort, joined with author info. */
+/**
+ * List posts with optional topic filter and sort, joined with author info.
+ * Drafts are hidden unless the caller passes `drafts: true`, in which case
+ * only the caller's own drafts are returned.
+ */
 export const list = query({
   args: {
     topic: v.optional(v.string()),
     sort: v.optional(
       v.union(v.literal("newest"), v.literal("oldest"), v.literal("likes")),
     ),
+    drafts: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const posts = await ctx.db.query("posts").collect();
-    const filtered = posts.filter(
-      (post) => !args.topic || post.topic === args.topic,
-    );
+    const userId = await getAuthUserId(ctx);
+    const filtered = posts.filter((post) => {
+      if (args.topic && post.topic !== args.topic) return false;
+      const isDraft = post.status === "draft";
+      if (args.drafts) {
+        // Only the author sees their own drafts.
+        return isDraft && post.authorId === userId;
+      }
+      return !isDraft;
+    });
     switch (args.sort ?? "newest") {
       case "oldest":
         filtered.sort((a, b) => a._creationTime - b._creationTime);
@@ -210,7 +222,7 @@ export const promoted = query({
   handler: async (ctx) => {
     const posts = await ctx.db.query("posts").collect();
     const promotedPosts = posts
-      .filter((post) => post.promotedAt !== undefined)
+      .filter((post) => post.promotedAt !== undefined && post.status !== "draft")
       .sort((a, b) => (b.promotedAt ?? 0) - (a.promotedAt ?? 0))
       .slice(0, 10);
     return await hydratePosts(ctx, promotedPosts);
@@ -226,7 +238,10 @@ export const byAuthor = query({
       .withIndex("by_author", (q) => q.eq("authorId", userId))
       .collect();
     posts.sort((a, b) => b._creationTime - a._creationTime);
-    return await hydratePosts(ctx, posts);
+    return await hydratePosts(
+      ctx,
+      posts.filter((post) => post.status !== "draft"),
+    );
   },
 });
 
@@ -235,8 +250,9 @@ export const mentionsOf = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     const posts = await ctx.db.query("posts").collect();
-    const mentioned = posts.filter((post) =>
-      (post.mentionedUserIds ?? []).includes(userId),
+    const mentioned = posts.filter(
+      (post) =>
+        post.status !== "draft" && (post.mentionedUserIds ?? []).includes(userId),
     );
     mentioned.sort((a, b) => b._creationTime - a._creationTime);
     return await hydratePosts(ctx, mentioned.slice(0, 50));
@@ -250,6 +266,14 @@ export const create = mutation({
     body: v.string(),
     topic: v.optional(topicValidator),
     images: v.optional(v.array(v.id("_storage"))),
+    status: v.optional(v.union(v.literal("draft"), v.literal("published"))),
+    tags: v.optional(v.array(v.string())),
+    description: v.optional(v.string()),
+    difficulty: v.optional(
+      v.union(v.literal("intro"), v.literal("intermediate"), v.literal("advanced")),
+    ),
+    sourceDocument: v.optional(v.id("_storage")),
+    importedFrom: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -273,6 +297,7 @@ export const create = mutation({
         `Keep the post under ${MAX_BODY_CHARS.toLocaleString()} characters (formulas don't count).`,
       );
     }
+    const isDraft = args.status === "draft";
     const postId = await ctx.db.insert("posts", {
       authorId: userId,
       title,
@@ -280,12 +305,21 @@ export const create = mutation({
       topic: args.topic || undefined,
       images: images.length > 0 ? images : undefined,
       likedBy: [],
+      status: isDraft ? "draft" : undefined,
+      tags: args.tags && args.tags.length > 0 ? args.tags.slice(0, 20) : undefined,
+      description: args.description?.trim() || undefined,
+      difficulty: args.difficulty || undefined,
+      sourceDocument: args.sourceDocument,
+      importedFrom: args.importedFrom?.trim() || undefined,
     });
 
-    // Resolve @mentions and notify everyone mentioned (except the author)
+    // Drafts stay private — resolve mention targets silently, but don't
+    // notify anyone until the post is actually published.
     const mentionedUserIds = await resolveMentions(ctx, `${title} ${body}`);
     if (mentionedUserIds.length > 0) {
       await ctx.db.patch(postId, { mentionedUserIds });
+    }
+    if (!isDraft && mentionedUserIds.length > 0) {
       for (const mentionedId of mentionedUserIds) {
         if (mentionedId === userId) continue;
         await ctx.db.insert("notifications", {
@@ -314,6 +348,14 @@ export const update = mutation({
     body: v.string(),
     topic: v.optional(topicValidator),
     images: v.optional(v.array(v.id("_storage"))),
+    status: v.optional(v.union(v.literal("draft"), v.literal("published"))),
+    tags: v.optional(v.array(v.string())),
+    description: v.optional(v.string()),
+    difficulty: v.optional(
+      v.union(v.literal("intro"), v.literal("intermediate"), v.literal("advanced")),
+    ),
+    sourceDocument: v.optional(v.id("_storage")),
+    importedFrom: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -356,12 +398,19 @@ export const update = mutation({
     }
 
     const editedAt = Date.now();
+    const isDraft = args.status === "draft";
     await ctx.db.patch(args.postId, {
       title,
       body,
       topic: args.topic || undefined,
       images: images.length > 0 ? images : undefined,
       editedAt,
+      status: args.status ?? post.status ?? undefined,
+      tags: args.tags !== undefined ? (args.tags.length > 0 ? args.tags.slice(0, 20) : undefined) : post.tags,
+      description: args.description !== undefined ? args.description.trim() || undefined : post.description,
+      difficulty: args.difficulty ?? post.difficulty,
+      sourceDocument: args.sourceDocument !== undefined ? args.sourceDocument : post.sourceDocument,
+      importedFrom: args.importedFrom !== undefined ? args.importedFrom.trim() || undefined : post.importedFrom,
     });
 
     // Record a snapshot of this edit for the history timeline.
@@ -374,10 +423,12 @@ export const update = mutation({
       topic: args.topic || undefined,
     });
 
-    // Re-resolve @mentions from the new text and notify anyone newly mentioned.
+    // Re-resolve @mentions from the new text. Only notify when the post is
+    // (or just became) public — drafts stay quiet.
     const mentionedUserIds = await resolveMentions(ctx, `${title} ${body}`);
     const previous = post.mentionedUserIds ?? [];
     await ctx.db.patch(args.postId, { mentionedUserIds });
+    if (isDraft || args.status === undefined) return;
     for (const mentionedId of mentionedUserIds) {
       if (mentionedId === userId || previous.includes(mentionedId)) continue;
       await ctx.db.insert("notifications", {

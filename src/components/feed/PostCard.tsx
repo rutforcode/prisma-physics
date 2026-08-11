@@ -18,7 +18,7 @@ import { MixedBody } from "@/components/feed/MixedBody";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
-import { topicMeta } from "@/lib/topic-meta";
+import { difficultyMeta, topicMeta } from "@/lib/topic-meta";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
@@ -160,6 +160,14 @@ export function PostCard({
             >
               <topic.icon className="size-3" />
               {topic.label}
+            </Badge>
+          )}
+          {post.difficulty && (
+            <Badge
+              variant="outline"
+              className={cn("rounded-full border", difficultyMeta(post.difficulty).badge)}
+            >
+              {difficultyMeta(post.difficulty).label}
             </Badge>
           )}
           <button

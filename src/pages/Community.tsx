@@ -11,7 +11,9 @@ import { cn } from "@/lib/utils";
 import { TOPICS } from "@/lib/topic-meta";
 import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
-import { MessagesSquare, SlidersHorizontal } from "lucide-react";
+import { WordImportDialog } from "@/components/feed/WordImportDialog";
+import { Button } from "@/components/ui/button";
+import { FileText, MessagesSquare, PencilLine, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
@@ -46,10 +48,15 @@ export default function Community() {
   const editParam = searchParams.get("edit");
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<PostItem | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importDraft, setImportDraft] = useState<PostItem | null>(null);
+  const [showDrafts, setShowDrafts] = useState(false);
   const posts = useQuery(api.posts.list, {
     topic: topic ?? undefined,
     sort,
   });
+  const drafts = useQuery(api.posts.list, { drafts: true, sort: "newest" });
+  const myDrafts = drafts ?? [];
   const isLoading = posts === undefined;
 
   // Deep link from a notification: reveal the topic filter, scroll to the
@@ -128,6 +135,85 @@ export default function Community() {
 
         <div className="mt-8 space-y-8">
           <div id="post-composer" className="scroll-mt-24">
+            {/* Create Post action: write manually or import from Word */}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Create Post
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {myDrafts.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDrafts((v) => !v)}
+                    className="border-amber-300/60 bg-amber-500/10 text-amber-800 hover:bg-amber-500/20 hover:text-amber-900"
+                  >
+                    {showDrafts ? "Hide drafts" : `My drafts (${myDrafts.length})`}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    document
+                      .getElementById("post-composer")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
+                >
+                  <PencilLine className="mr-1.5 size-3.5" />
+                  Write manually
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setImportDraft(null);
+                    setImportOpen(true);
+                  }}
+                >
+                  <FileText className="mr-1.5 size-3.5" />
+                  Import from Word
+                </Button>
+              </div>
+            </div>
+
+            {showDrafts && myDrafts.length > 0 && (
+              <div className="mb-5 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Your drafts — finish them anytime
+                </p>
+                {myDrafts.map((d) => (
+                  <div
+                    key={d._id}
+                    className="glass flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {d.title}
+                      </p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                          Draft
+                        </span>
+                        {d.importedFrom
+                          ? `Imported from ${d.importedFrom}`
+                          : `Saved ${new Date(d._creationTime).toLocaleDateString()}`}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setImportDraft(d as PostItem);
+                        setShowDrafts(false);
+                        setImportOpen(true);
+                      }}
+                    >
+                      Continue editing
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <PostComposer
               key={editingPost?._id ?? "new"}
               initialPost={editingPost}
@@ -234,6 +320,14 @@ export default function Community() {
       </main>
 
       <GlassFooter />
+
+      <WordImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        existingPosts={(posts ?? []) as PostItem[]}
+        initialDraft={importDraft}
+        onDone={(postId) => setSearchParams({ post: postId })}
+      />
     </div>
   );
 }
