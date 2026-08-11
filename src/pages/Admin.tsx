@@ -1,6 +1,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { AuroraBackground } from "@/components/AuroraBackground";
 import { GlassFooter } from "@/components/GlassFooter";
+import { AdminManager } from "@/components/feed/AdminManager";
 import { CuratorManager } from "@/components/feed/CuratorManager";
 import {
   FeedPostCard,
@@ -136,6 +137,7 @@ export default function Admin() {
         {/* Curators + feed announcements / Community moderation */}
         <div className="mt-8 grid gap-6 lg:grid-cols-5">
           <div className="space-y-6 lg:col-span-2">
+            <AdminManager currentUserId={user?._id} />
             <CuratorManager currentUserId={user?._id} />
 
             {/* Feed announcements */}

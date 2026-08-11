@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { roleValidator } from "./schema";
 import { mutation, query, QueryCtx } from "./_generated/server";
 
 /**
@@ -128,6 +129,35 @@ export const stats = query({
       feedPosts: feedPosts.length,
       promoted: posts.filter((p) => p.promotedAt !== undefined).length,
     };
+  },
+});
+
+/**
+ * Promote a student to admin, or demote an admin back to a regular user
+ * (admins only). You cannot demote yourself — that would lock the
+ * workspace out of admin controls.
+ */
+export const setRole = mutation({
+  args: { userId: v.id("users"), role: roleValidator },
+  handler: async (ctx, args) => {
+    const me = await getAuthUserId(ctx);
+    if (me === null) {
+      throw new Error("You must be signed in.");
+    }
+    const self = await ctx.db.get(me);
+    if (self?.role !== "admin") {
+      throw new Error("Only admins can manage roles.");
+    }
+    const target = await ctx.db.get(args.userId);
+    if (target === null) {
+      throw new Error("User not found.");
+    }
+    if (target.role === "admin" && args.role !== "admin") {
+      if (args.userId === me) {
+        throw new Error("You can't remove your own admin role.");
+      }
+    }
+    await ctx.db.patch(args.userId, { role: args.role });
   },
 });
 
