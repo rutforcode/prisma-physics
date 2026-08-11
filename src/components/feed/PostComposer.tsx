@@ -22,6 +22,7 @@ import {
   countNonFormulaChars,
 } from "@/lib/math-count";
 import { cn } from "@/lib/utils";
+import { mathInsert } from "@/lib/math-insert";
 import { TOPICS, type TopicId } from "@/lib/topic-meta";
 import { useMutation, useQuery } from "convex/react";
 import {
@@ -114,13 +115,19 @@ export function PostComposer() {
     }
   };
 
-  // Live preview shows once the post contains LaTeX math ($...$, $$...$$, \(...\))
+  // Live preview shows once the post contains math: $...$ delimiters, \(...\)
+  // spans, or bare LaTeX commands (e.g. \alpha typed by hand).
   const hasMath =
-    body.includes("$") || body.includes("\\(") || body.includes("\\[");
+    body.includes("$") ||
+    body.includes("\\(") ||
+    body.includes("\\[") ||
+    /\\[a-zA-Z]/.test(body);
 
   /**
-   * Insert a LaTeX token from the math keyboard at the caret. `{}` pairs act
-   * as placeholders: a selection is wrapped by the first pair, otherwise the
+   * Insert a LaTeX token from the math keyboard at the caret. The token is
+   * wrapped in $…$ automatically (unless the caret is already inside math),
+   * so keyboard-composed formulas always render. `{}` pairs act as
+   * placeholders: a selection is wrapped by the first pair, otherwise the
    * caret lands inside it.
    */
   const insertTex = (tex: string) => {
@@ -130,26 +137,7 @@ export function PostComposer() {
     const end = el.selectionEnd ?? start;
     const selected = body.slice(start, end);
 
-    let insert = tex;
-    let caretOffset = insert.length;
-    const braceIndex = insert.indexOf("{}");
-    if (braceIndex !== -1) {
-      if (selected.length > 0) {
-        insert =
-          insert.slice(0, braceIndex) +
-          "{" +
-          selected +
-          "}" +
-          insert.slice(braceIndex + 2);
-        caretOffset = braceIndex + selected.length + 2;
-      } else {
-        caretOffset = braceIndex + 1;
-      }
-    } else if (selected.length > 0) {
-      // Plain symbols replace the selection (calculator-style)
-      caretOffset = insert.length;
-    }
-
+    const { insert, caretOffset } = mathInsert(body, start, tex, selected);
     const next = body.slice(0, start) + insert + body.slice(end);
     setBody(next);
     setMentionOpen(false);
@@ -313,7 +301,7 @@ export function PostComposer() {
               setKeyboardOpen(false);
             }
           }}
-          placeholder="What would you like to discuss? Wrap formulas in $...$, or type @ to mention a classmate."
+          placeholder="What would you like to discuss? Use the Σ math keyboard (it wraps formulas for you), or type @ to mention a classmate."
           rows={3}
           className="w-full resize-none rounded-xl border border-white/70 bg-white/50 px-4 py-3 text-sm leading-relaxed shadow-inner outline-none transition-all placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-[3px] focus:ring-primary/15"
         />
