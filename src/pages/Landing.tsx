@@ -2,6 +2,15 @@ import { AuroraBackground } from "@/components/AuroraBackground";
 import { MathInline } from "@/components/MathJax";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { TOPICS, difficultyMeta, topicMeta } from "@/lib/topic-meta";
 import { motion } from "framer-motion";
@@ -15,11 +24,13 @@ import {
   Library,
   Lightbulb,
   Magnet,
+  Menu,
   Sigma,
   Sparkles,
   Thermometer,
 } from "lucide-react";
 import { Link } from "react-router";
+import { useState } from "react";
 
 /* ---------- static preview of feed content (mirrors seeded concepts) ---------- */
 
@@ -204,6 +215,8 @@ function FloatingFormula({
 /* ---------- page ---------- */
 
 export default function Landing() {
+  const [navOpen, setNavOpen] = useState(false);
+
   return (
     <div className="min-h-screen text-foreground">
       <AuroraBackground />
@@ -211,6 +224,65 @@ export default function Landing() {
       {/* Floating nav */}
       <header className="sticky top-4 z-40 px-4">
         <div className="glass mx-auto flex max-w-6xl items-center justify-between rounded-2xl py-2.5 pl-4 pr-2.5">
+          {/* Mobile menu */}
+          <Sheet open={navOpen} onOpenChange={setNavOpen}>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                aria-label="Open menu"
+                className="glass-chip flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:text-foreground md:hidden"
+              >
+                <Menu className="size-5" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="left" className="glass-strong w-72 border-r border-white/50">
+              <SheetHeader className="border-b border-white/50 pb-4 text-left">
+                <SheetTitle>
+                  <Logo />
+                </SheetTitle>
+                <SheetDescription>Physics, made clear.</SheetDescription>
+              </SheetHeader>
+              <nav className="mt-4 flex flex-col gap-1">
+                {["Concepts", "Topics", "How it works", "References"].map((label) => (
+                  <SheetClose asChild key={label}>
+                    <a
+                      href={`#${label.toLowerCase().replace(/ /g, "-")}`}
+                      className="rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/50 hover:text-foreground"
+                    >
+                      {label}
+                    </a>
+                  </SheetClose>
+                ))}
+                <SheetClose asChild>
+                  <Link
+                    to="/resources"
+                    className="rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/50 hover:text-foreground"
+                  >
+                    Resources
+                  </Link>
+                </SheetClose>
+                <div className="my-2 h-px bg-white/50" />
+                <SheetClose asChild>
+                  <Link
+                    to="/auth"
+                    className="rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/50 hover:text-foreground"
+                  >
+                    Sign in
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    to="/dashboard"
+                    className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm"
+                  >
+                    Open the feed
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </SheetClose>
+              </nav>
+            </SheetContent>
+          </Sheet>
+
           <Logo />
           <nav className="hidden items-center gap-1 md:flex">
             {["Concepts", "Topics", "How it works", "References"].map((label) => (
