@@ -35,6 +35,29 @@ import {
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+function GoogleG({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </svg>
+  );
+}
+
 interface AuthProps {
   redirectAfterAuth?: string;
 }
@@ -64,6 +87,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [studentMethod, setStudentMethod] = useState<"email" | "password">(
+    "email",
+  );
+  const [passwordFlow, setPasswordFlow] = useState<"signIn" | "signUp">(
+    "signIn",
+  );
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Admin account bootstrap — idempotent, runs when the Admin tab is open.
   const ensureAdmin = useAction(api.admin.ensureAdmin);
@@ -181,6 +211,48 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }
   };
 
+  const handlePasswordSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData(event.currentTarget);
+      await signIn("password", formData);
+      navigate(redirect);
+    } catch (error) {
+      console.error("Password sign-in error:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Sign-in failed — check your details and try again.",
+      );
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      await signIn("google", { redirectTo: redirect });
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Google sign-in failed — please try again.",
+      );
+      setGoogleLoading(false);
+    }
+  };
+
+  const switchStudentMethod = (method: "email" | "password") => {
+    setStudentMethod(method);
+    setError(null);
+  };
+
   return (
     <div className="min-h-screen flex flex-col text-foreground">
       <AuroraBackground />
@@ -237,13 +309,93 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     </div>
                     <CardTitle className="text-xl">Get Started</CardTitle>
                     <CardDescription>
-                      Enter your email to log in or sign up
+                      Sign in or create a student account
                     </CardDescription>
                   </CardHeader>
-                  <form onSubmit={handleEmailSubmit}>
-                    <CardContent>
-                      <div className="relative flex items-center gap-2">
-                        <div className="relative flex-1">
+
+                  {/* Method switcher */}
+                  <div className="px-6 pb-4">
+                    <div className="grid grid-cols-2 gap-1 rounded-full border border-white/60 bg-white/40 p-1">
+                      <button
+                        type="button"
+                        onClick={() => switchStudentMethod("email")}
+                        className={[
+                          "inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all",
+                          studentMethod === "email"
+                            ? "bg-white text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        ].join(" ")}
+                      >
+                        <Mail className="size-4" />
+                        Email code
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => switchStudentMethod("password")}
+                        className={[
+                          "inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all",
+                          studentMethod === "password"
+                            ? "bg-white text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        ].join(" ")}
+                      >
+                        <Lock className="size-4" />
+                        Password
+                      </button>
+                    </div>
+                  </div>
+
+                  {studentMethod === "email" ? (
+                    <form onSubmit={handleEmailSubmit}>
+                      <CardContent className="pb-0">
+                        <div className="relative flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              name="email"
+                              placeholder="name@example.com"
+                              type="email"
+                              className="pl-9"
+                              disabled={isLoading}
+                              required
+                            />
+                          </div>
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="icon"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <ArrowRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        {error && (
+                          <p className="mt-2 text-sm text-red-500">{error}</p>
+                        )}
+                      </CardContent>
+                    </form>
+                  ) : (
+                    <form onSubmit={handlePasswordSubmit}>
+                      <CardContent className="space-y-3 pb-0">
+                        {passwordFlow === "signUp" && (
+                          <div className="relative">
+                            <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              name="name"
+                              placeholder="Your name"
+                              type="text"
+                              className="pl-9"
+                              disabled={isLoading}
+                              maxLength={40}
+                              autoComplete="name"
+                            />
+                          </div>
+                        )}
+                        <div className="relative">
                           <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                           <Input
                             name="email"
@@ -252,50 +404,130 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                             className="pl-9"
                             disabled={isLoading}
                             required
+                            autoComplete="email"
                           />
                         </div>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            name="password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder={
+                              passwordFlow === "signUp"
+                                ? "At least 8 characters"
+                                : "Your password"
+                            }
+                            className="pl-9 pr-10"
+                            disabled={isLoading}
+                            required
+                            minLength={passwordFlow === "signUp" ? 8 : undefined}
+                            autoComplete={
+                              passwordFlow === "signUp"
+                                ? "new-password"
+                                : "current-password"
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((v) => !v)}
+                            className="absolute right-2.5 top-2.5 text-muted-foreground transition-colors hover:text-foreground"
+                            aria-label={
+                              showPassword ? "Hide password" : "Show password"
+                            }
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                        <input
+                          type="hidden"
+                          name="flow"
+                          value={passwordFlow}
+                        />
+                        {error && (
+                          <p className="text-sm text-red-500">{error}</p>
+                        )}
                         <Button
                           type="submit"
-                          variant="outline"
-                          size="icon"
+                          className="w-full"
                           disabled={isLoading}
                         >
                           {isLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              {passwordFlow === "signUp"
+                                ? "Creating account…"
+                                : "Signing in…"}
+                            </>
+                          ) : passwordFlow === "signUp" ? (
+                            "Create account"
                           ) : (
-                            <ArrowRight className="h-4 w-4" />
+                            "Sign in"
                           )}
                         </Button>
-                      </div>
-                      {error && (
-                        <p className="mt-2 text-sm text-red-500">{error}</p>
-                      )}
-
-                      <div className="mt-4">
-                        <div className="relative">
-                          <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t" />
-                          </div>
-                          <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-2 text-muted-foreground">
-                              Or
-                            </span>
-                          </div>
-                        </div>
-
+                      </CardContent>
+                      <CardFooter className="flex-col gap-2 pt-4">
                         <Button
                           type="button"
-                          variant="outline"
-                          className="w-full mt-4"
-                          onClick={handleGuestLogin}
+                          variant="ghost"
+                          onClick={() => {
+                            setPasswordFlow((f) =>
+                              f === "signIn" ? "signUp" : "signIn",
+                            );
+                            setError(null);
+                          }}
                           disabled={isLoading}
+                          className="w-full"
                         >
-                          <UserX className="mr-2 h-4 w-4" />
-                          Continue as Guest
+                          {passwordFlow === "signIn"
+                            ? "New here? Create an account"
+                            : "Already have an account? Sign in"}
                         </Button>
+                      </CardFooter>
+                    </form>
+                  )}
+
+                  {/* Shared: Google + guest */}
+                  <div className="px-6 pb-6 pt-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
                       </div>
-                    </CardContent>
-                  </form>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                          Or
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-4 w-full"
+                      onClick={() => void handleGoogle()}
+                      disabled={isLoading || googleLoading}
+                    >
+                      {googleLoading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <GoogleG className="mr-2 h-4 w-4" />
+                      )}
+                      Continue with Google
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-2 w-full"
+                      onClick={() => void handleGuestLogin()}
+                      disabled={isLoading || googleLoading}
+                    >
+                      <UserX className="mr-2 h-4 w-4" />
+                      Continue as Guest
+                    </Button>
+                  </div>
                 </>
               ) : (
                 <>
