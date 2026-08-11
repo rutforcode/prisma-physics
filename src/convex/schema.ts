@@ -94,6 +94,16 @@ const schema = defineSchema(
       editedAt: v.optional(v.number()), // set when the author edits the post
     }).index("by_author", ["authorId"]),
 
+    // Snapshot of every community post edit (powers the edit-history UI)
+    postEdits: defineTable({
+      postId: v.id("posts"),
+      editorId: v.id("users"),
+      editedAt: v.number(),
+      title: v.string(),
+      body: v.string(),
+      topic: v.optional(topicValidator),
+    }).index("by_post", ["postId"]),
+
     // Community activity notifications (mentions + likes)
     notifications: defineTable({
       recipientId: v.id("users"),

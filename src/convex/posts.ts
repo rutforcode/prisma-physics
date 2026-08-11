@@ -100,6 +100,32 @@ async function hydratePosts(ctx: QueryCtx, posts: Doc<"posts">[]) {
       }
     }
 
+    // Edit history — snapshots recorded on every update, newest first.
+    const editHistory: {
+      editedAt: number;
+      editorId: Id<"users">;
+      editorName: string;
+      title: string;
+      body: string;
+      topic?: string;
+    }[] = [];
+    const edits = await ctx.db
+      .query("postEdits")
+      .withIndex("by_post", (q) => q.eq("postId", post._id))
+      .collect();
+    edits.sort((a, b) => b.editedAt - a.editedAt);
+    for (const edit of edits.slice(0, 10)) {
+      const editor = await ctx.db.get(edit.editorId);
+      editHistory.push({
+        editedAt: edit.editedAt,
+        editorId: edit.editorId,
+        editorName: editor?.name ?? editor?.email?.split("@")[0] ?? "Someone",
+        title: edit.title,
+        body: edit.body,
+        topic: edit.topic,
+      });
+    }
+
     result.push({
       ...post,
       authorName: author?.name ?? author?.email?.split("@")[0] ?? "Student",
@@ -107,6 +133,9 @@ async function hydratePosts(ctx: QueryCtx, posts: Doc<"posts">[]) {
       images,
       imageUrls,
       mentionedUsers,
+      editHistory,
+      editedBy: editHistory[0]?.editorName ?? null,
+      editCount: editHistory.length,
     });
   }
   return result;
@@ -326,12 +355,23 @@ export const update = mutation({
       }
     }
 
+    const editedAt = Date.now();
     await ctx.db.patch(args.postId, {
       title,
       body,
       topic: args.topic || undefined,
       images: images.length > 0 ? images : undefined,
-      editedAt: Date.now(),
+      editedAt,
+    });
+
+    // Record a snapshot of this edit for the history timeline.
+    await ctx.db.insert("postEdits", {
+      postId: args.postId,
+      editorId: userId,
+      editedAt,
+      title,
+      body,
+      topic: args.topic || undefined,
     });
 
     // Re-resolve @mentions from the new text and notify anyone newly mentioned.

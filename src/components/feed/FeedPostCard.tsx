@@ -17,7 +17,8 @@ import { cn } from "@/lib/utils";
 import { topicMeta } from "@/lib/topic-meta";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
-import { Atom, Pencil, Trash2 } from "lucide-react";
+import { Atom, Pencil, Share2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export interface FeedPostItem extends Doc<"feedPosts"> {
   authorName: string;
@@ -32,14 +33,31 @@ export function FeedPostCard({
   canDelete,
   canEdit,
   onEdit,
+  highlighted = false,
 }: {
   post: FeedPostItem;
   canDelete: boolean;
   canEdit?: boolean;
   onEdit?: () => void;
+  /** Flash ring when deep-linked to this post (e.g. ?post=ID). */
+  highlighted?: boolean;
 }) {
   const removePost = useMutation(api.feedPosts.remove);
   const topic = post.topic ? topicMeta(post.topic) : null;
+
+  const sharePost = async () => {
+    const url = `${window.location.origin}/dashboard?post=${post._id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast("Link copied", {
+        description: "Share it with your classmates.",
+      });
+    } catch {
+      toast("Couldn't copy the link", {
+        description: url,
+      });
+    }
+  };
   const initials = post.authorName
     .split(" ")
     .map((part) => part.charAt(0))
@@ -48,7 +66,13 @@ export function FeedPostCard({
     .toUpperCase();
 
   return (
-    <article className="glass rounded-3xl p-6 transition-shadow hover:shadow-lg md:p-7">
+    <article
+      id={post._id}
+      className={cn(
+        "glass rounded-3xl p-6 transition-shadow hover:shadow-lg md:p-7",
+        highlighted && "ring-2 ring-primary/60",
+      )}
+    >
       <div className="flex items-center gap-3">
         {post.isTeamPost ? (
           <span className="glass-chip flex size-10 shrink-0 items-center justify-center rounded-full text-primary ring-2 ring-white/70">
@@ -87,6 +111,14 @@ export function FeedPostCard({
               {topic.label}
             </Badge>
           )}
+          <button
+            type="button"
+            onClick={() => void sharePost()}
+            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            aria-label="Copy link to this announcement"
+          >
+            <Share2 className="size-4" />
+          </button>
           {canEdit && onEdit && (
             <button
               type="button"

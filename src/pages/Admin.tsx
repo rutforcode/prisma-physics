@@ -178,7 +178,15 @@ export default function Admin() {
                   (feedPosts as FeedPostItem[])
                     .slice(0, 6)
                     .map((post) => (
-                      <FeedPostCard key={post._id} post={post} canDelete />
+                      <FeedPostCard
+                        key={post._id}
+                        post={post}
+                        canDelete
+                        canEdit
+                        onEdit={() =>
+                          navigate(`/dashboard?edit=${post._id}`)
+                        }
+                      />
                     ))
                 )}
               </div>

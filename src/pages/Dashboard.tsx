@@ -27,6 +27,7 @@ import {
   Star,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 
 function FeedSkeleton() {
   return (
@@ -58,6 +59,10 @@ export default function Dashboard() {
   >("az");
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<FeedPostItem | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const postParam = searchParams.get("post");
+  const editParam = searchParams.get("edit");
 
   const concepts = useQuery(api.concepts.list, {
     topic: topic ?? undefined,
@@ -121,6 +126,55 @@ export default function Dashboard() {
     setSelectedSlug(slug);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // Deep link to a feed announcement (?post=ID, e.g. from a shared link):
+  // scroll to the card, flash a highlight ring, then clean the URL.
+  useEffect(() => {
+    if (!postParam || feedPosts === undefined) return;
+    const scrollTimer = setTimeout(() => {
+      document
+        .getElementById(postParam)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightId(postParam);
+    }, 250);
+    const clearTimer = setTimeout(() => setHighlightId(null), 3400);
+    const urlTimer = setTimeout(
+      () => setSearchParams({}, { replace: true }),
+      1500,
+    );
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+      clearTimeout(urlTimer);
+    };
+  }, [postParam, feedPosts, setSearchParams]);
+
+  // Deep link to edit a feed announcement (?edit=ID, e.g. from the Admin
+  // overview): open the composer in edit mode and scroll it into view.
+  useEffect(() => {
+    if (!editParam || feedPosts === undefined) return;
+    const target = (feedPosts as FeedPostItem[]).find(
+      (p) => p._id === editParam,
+    );
+    if (!target) return;
+    const canModerate =
+      isAdmin || (target.authorId === user?._id && canPostFeed);
+    if (!canModerate) return;
+    setEditingPost(target);
+    const scrollTimer = setTimeout(() => {
+      document
+        .getElementById("feed-composer")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 250);
+    const urlTimer = setTimeout(
+      () => setSearchParams({}, { replace: true }),
+      1500,
+    );
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(urlTimer);
+    };
+  }, [editParam, feedPosts, isAdmin, user?._id, canPostFeed, setSearchParams]);
 
   const firstName = user?.name?.split(" ")[0];
 
@@ -213,7 +267,10 @@ export default function Dashboard() {
           )}
 
           {canPostFeed && (
-            <div className="mt-4 max-w-3xl">
+            <div
+              id="feed-composer"
+              className="mt-4 max-w-3xl scroll-mt-24"
+            >
               <FeedPostComposer
                 key={editingPost?._id ?? "new"}
                 initialPost={editingPost}
@@ -256,9 +313,18 @@ export default function Dashboard() {
                   <FeedPostCard
                     key={post._id}
                     post={post}
+                    highlighted={highlightId === post._id}
                     canDelete={canModerate}
                     canEdit={canModerate}
-                    onEdit={() => setEditingPost(post)}
+                    onEdit={() => {
+                      setEditingPost(post);
+                      document
+                        .getElementById("feed-composer")
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                    }}
                   />
                 );
               })
