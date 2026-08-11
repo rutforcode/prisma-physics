@@ -42,6 +42,38 @@ export const promoteToAdmin = mutation({
 });
 
 /**
+ * One-time backfill: password accounts created before email verification was
+ * enabled carry no `authAccounts.emailVerified` flag, so with the `verify`
+ * sub-provider active their plain sign-in bounces into a code step with no
+ * session (silent loop back to /auth). Password account ids ARE the email
+ * address, so we can stamp the verified flag safely for every existing
+ * password account, and mark the user's `emailVerificationTime` so
+ * verified-email account merging (Google/OTP ↔ password) keeps working.
+ */
+export const backfillPasswordVerification = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const accounts = await ctx.db
+      .query("authAccounts")
+      .filter((q) => q.eq(q.field("provider"), "password"))
+      .collect();
+    for (const account of accounts) {
+      if (!account.emailVerified) {
+        await ctx.db.patch(account._id, {
+          emailVerified: account.providerAccountId,
+        });
+        const user = await ctx.db.get(account.userId);
+        if (user && !user.emailVerificationTime) {
+          await ctx.db.patch(account.userId, {
+            emailVerificationTime: Date.now(),
+          });
+        }
+      }
+    }
+  },
+});
+
+/**
  * Seed the demo admin account with the given credentials. Idempotent:
  *  1. If any admin already exists, it does nothing (never overwrites roles
  *     or passwords of a live admin).
@@ -58,6 +90,10 @@ export const ensureAdmin = action({
   handler: async (ctx, args) => {
     const email = args.email.trim().toLowerCase();
 
+    // 0. Stamp pre-verification password accounts as verified so existing
+    //    admin/student password sign-ins keep working.
+    await ctx.runMutation(api.admin.backfillPasswordVerification);
+
     // 1. An admin already exists — nothing to do.
     const adminExists = await ctx.runQuery(api.admin.existsAdmin);
     if (adminExists) {
@@ -71,11 +107,19 @@ export const ensureAdmin = action({
       return { created: false, promoted: true, email };
     }
 
-    // 3. Fresh account.
+    // 3. Fresh account. `emailVerified: true` keeps the admin on plain
+    //    password sign-in (password accounts require email verification).
+    //    (The lib's profile type omits `emailVerified`, though the runtime
+    //    reads it — hence the cast.)
     const { user } = await createAccount(ctx, {
       provider: "password",
       account: { id: email, secret: args.password },
-      profile: { email, name: "Admin", role: "admin" },
+      profile: {
+        email,
+        name: "Admin",
+        role: "admin",
+        emailVerified: true,
+      } as unknown as Record<string, unknown>,
     });
 
     return { created: true, email, userId: user._id };

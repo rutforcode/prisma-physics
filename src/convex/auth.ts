@@ -6,6 +6,7 @@ import { Password } from "@convex-dev/auth/providers/Password";
 import Google, { type GoogleProfile } from "@auth/core/providers/google";
 import { type Value } from "convex/values";
 import { emailOtp } from "./auth/emailOtp";
+import { otpEmailProvider } from "./auth/emailCode";
 
 /**
  * Google OAuth for student accounts. Configure the OAuth client with:
@@ -29,6 +30,14 @@ const google = Google({
  * Email + password accounts for students (the same Password provider the
  * admin tab uses). The `profile` callback stores the display name students
  * enter at sign-up, falling back to the email local part otherwise.
+ *
+ * `verify` — new sign-ups must confirm their email with a code before the
+ * account activates. That makes password accounts safe to merge with
+ * existing email-OTP / Google accounts: Convex Auth links by verified email,
+ * so one email = one account across all three sign-in methods.
+ *
+ * `reset` — powers the "forgot password" flow (code emailed, then a new
+ * password).
  */
 const password = Password({
   // The lib's profile return type requires an index signature over `Value`
@@ -43,6 +52,8 @@ const password = Password({
       email: string;
     };
   },
+  verify: otpEmailProvider("password-verify"),
+  reset: otpEmailProvider("password-reset"),
 });
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({

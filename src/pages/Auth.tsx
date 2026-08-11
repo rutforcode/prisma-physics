@@ -93,6 +93,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [passwordFlow, setPasswordFlow] = useState<"signIn" | "signUp">(
     "signIn",
   );
+  const [pwStep, setPwStep] = useState<
+    "form" | "verify" | "reset" | "resetVerify"
+  >("form");
+  const [pwEmail, setPwEmail] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
 
   // Admin account bootstrap — idempotent, runs when the Admin tab is open.
@@ -219,14 +223,93 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
+      const flow = String(formData.get("flow") ?? "signIn");
+      const email = String(formData.get("email") ?? "");
       await signIn("password", formData);
-      navigate(redirect);
+      if (flow === "signUp") {
+        // New accounts must confirm their email with a code first.
+        setPwEmail(email);
+        setPwStep("verify");
+      } else {
+        navigate(redirect);
+      }
     } catch (error) {
       console.error("Password sign-in error:", error);
       setError(
         error instanceof Error
           ? error.message
           : "Sign-in failed — check your details and try again.",
+      );
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordVerify = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signIn("password", new FormData(event.currentTarget));
+      navigate(redirect);
+    } catch (error) {
+      console.error("Password verification error:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Verification failed — check the code and try again.",
+      );
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetRequest = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") ?? "");
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signIn("password", { email, flow: "reset" });
+      setPwEmail(email);
+      setPwStep("resetVerify");
+    } catch (error) {
+      console.error("Password reset request error:", error);
+      setError(
+        error instanceof Error && /destructur/i.test(error.message)
+          ? "No password account was found for that email — create one, or sign in with an email code."
+          : error instanceof Error
+            ? error.message
+            : "Could not send the reset code.",
+      );
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetVerify = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signIn("password", {
+        email: pwEmail,
+        code: String(formData.get("code") ?? ""),
+        newPassword: String(formData.get("newPassword") ?? ""),
+        flow: "reset-verification",
+      });
+      navigate(redirect);
+    } catch (error) {
+      console.error("Password reset error:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Could not reset the password — try again.",
       );
       setIsLoading(false);
     }
@@ -250,6 +333,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
 
   const switchStudentMethod = (method: "email" | "password") => {
     setStudentMethod(method);
+    setPwStep("form");
     setError(null);
   };
 
@@ -378,7 +462,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         )}
                       </CardContent>
                     </form>
-                  ) : (
+                  ) : pwStep === "form" ? (
                     <form onSubmit={handlePasswordSubmit}>
                       <CardContent className="space-y-3 pb-0">
                         {passwordFlow === "signUp" && (
@@ -407,40 +491,54 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                             autoComplete="email"
                           />
                         </div>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            name="password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder={
-                              passwordFlow === "signUp"
-                                ? "At least 8 characters"
-                                : "Your password"
-                            }
-                            className="pl-9 pr-10"
-                            disabled={isLoading}
-                            required
-                            minLength={passwordFlow === "signUp" ? 8 : undefined}
-                            autoComplete={
-                              passwordFlow === "signUp"
-                                ? "new-password"
-                                : "current-password"
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((v) => !v)}
-                            className="absolute right-2.5 top-2.5 text-muted-foreground transition-colors hover:text-foreground"
-                            aria-label={
-                              showPassword ? "Hide password" : "Show password"
-                            }
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
+                        <div>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              name="password"
+                              type={showPassword ? "text" : "password"}
+                              placeholder={
+                                passwordFlow === "signUp"
+                                  ? "At least 8 characters"
+                                  : "Your password"
+                              }
+                              className="pl-9 pr-10"
+                              disabled={isLoading}
+                              required
+                              minLength={passwordFlow === "signUp" ? 8 : undefined}
+                              autoComplete={
+                                passwordFlow === "signUp"
+                                  ? "new-password"
+                                  : "current-password"
+                              }
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword((v) => !v)}
+                              className="absolute right-2.5 top-2.5 text-muted-foreground transition-colors hover:text-foreground"
+                              aria-label={
+                                showPassword ? "Hide password" : "Show password"
+                              }
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                          {passwordFlow === "signIn" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPwStep("reset");
+                                setError(null);
+                              }}
+                              className="ml-auto mt-1 block text-xs text-muted-foreground transition-colors hover:text-primary"
+                            >
+                              Forgot password?
+                            </button>
+                          )}
                         </div>
                         <input
                           type="hidden"
@@ -468,6 +566,12 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                             "Sign in"
                           )}
                         </Button>
+                        {passwordFlow === "signUp" && (
+                          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+                            We'll email you a code to confirm your address before
+                            your account is activated.
+                          </p>
+                        )}
                       </CardContent>
                       <CardFooter className="flex-col gap-2 pt-4">
                         <Button
@@ -485,6 +589,192 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                           {passwordFlow === "signIn"
                             ? "New here? Create an account"
                             : "Already have an account? Sign in"}
+                        </Button>
+                      </CardFooter>
+                    </form>
+                  ) : pwStep === "verify" ? (
+                    <form onSubmit={handlePasswordVerify}>
+                      <CardContent className="space-y-3 pb-0">
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          We sent a 6-digit code to{" "}
+                          <span className="font-semibold text-foreground">
+                            {pwEmail}
+                          </span>
+                          . Enter it below to activate your password account.
+                        </p>
+                        <input type="hidden" name="email" value={pwEmail} />
+                        <input
+                          type="hidden"
+                          name="flow"
+                          value="email-verification"
+                        />
+                        <div className="relative">
+                          <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            name="code"
+                            placeholder="6-digit code"
+                            inputMode="numeric"
+                            maxLength={6}
+                            className="pl-9 text-center font-mono tracking-[0.3em]"
+                            disabled={isLoading}
+                            required
+                          />
+                        </div>
+                        {error && (
+                          <p className="text-sm text-red-500">{error}</p>
+                        )}
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Verifying…
+                            </>
+                          ) : (
+                            "Verify & activate"
+                          )}
+                        </Button>
+                      </CardContent>
+                      <CardFooter className="flex-col gap-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setPwStep("form")}
+                          disabled={isLoading}
+                          className="w-full"
+                        >
+                          Back
+                        </Button>
+                      </CardFooter>
+                    </form>
+                  ) : pwStep === "reset" ? (
+                    <form onSubmit={handleResetRequest}>
+                      <CardContent className="space-y-3 pb-0">
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          Enter the email on your password account — we'll send
+                          a reset code.
+                        </p>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            name="email"
+                            placeholder="name@example.com"
+                            type="email"
+                            className="pl-9"
+                            disabled={isLoading}
+                            required
+                          />
+                        </div>
+                        {error && (
+                          <p className="text-sm text-red-500">{error}</p>
+                        )}
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending…
+                            </>
+                          ) : (
+                            "Send reset code"
+                          )}
+                        </Button>
+                      </CardContent>
+                      <CardFooter className="flex-col gap-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setPwStep("form")}
+                          disabled={isLoading}
+                          className="w-full"
+                        >
+                          Back to sign in
+                        </Button>
+                      </CardFooter>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleResetVerify}>
+                      <CardContent className="space-y-3 pb-0">
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          Enter the 6-digit code sent to{" "}
+                          <span className="font-semibold text-foreground">
+                            {pwEmail}
+                          </span>{" "}
+                          and choose a new password.
+                        </p>
+                        <input type="hidden" name="email" value={pwEmail} />
+                        <div className="relative">
+                          <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            name="code"
+                            placeholder="6-digit code"
+                            inputMode="numeric"
+                            maxLength={6}
+                            className="pl-9 text-center font-mono tracking-[0.3em]"
+                            disabled={isLoading}
+                            required
+                          />
+                        </div>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            name="newPassword"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="New password (at least 8 characters)"
+                            className="pl-9 pr-10"
+                            disabled={isLoading}
+                            required
+                            minLength={8}
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((v) => !v)}
+                            className="absolute right-2.5 top-2.5 text-muted-foreground transition-colors hover:text-foreground"
+                            aria-label={
+                              showPassword ? "Hide password" : "Show password"
+                            }
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                        {error && (
+                          <p className="text-sm text-red-500">{error}</p>
+                        )}
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Resetting…
+                            </>
+                          ) : (
+                            "Reset password"
+                          )}
+                        </Button>
+                      </CardContent>
+                      <CardFooter className="flex-col gap-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setPwStep("form")}
+                          disabled={isLoading}
+                          className="w-full"
+                        >
+                          Back
                         </Button>
                       </CardFooter>
                     </form>
