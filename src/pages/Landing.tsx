@@ -12,6 +12,7 @@ import {
   BookOpen,
   Clock3,
   Compass,
+  Library,
   Lightbulb,
   Magnet,
   Sigma,
@@ -569,6 +570,42 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Resources callout */}
+        <section className="mx-auto max-w-6xl px-4 pb-24">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6 }}
+            className="glass glass-hover group flex flex-col items-start justify-between gap-5 rounded-3xl p-7 sm:flex-row sm:items-center md:p-8"
+          >
+            <div className="flex items-start gap-4">
+              <span className="glass-chip flex size-12 shrink-0 items-center justify-center rounded-2xl text-primary transition-transform group-hover:scale-105">
+                <Library className="size-6" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  Resources
+                </p>
+                <h2 className="font-display mt-1.5 text-2xl font-semibold tracking-tight">
+                  A curated toolbox for learning Physics
+                </h2>
+                <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                  Hand-picked simulators, calculators, references, and courses —
+                  verified and organized by topic, so you can stop Googling and
+                  start experimenting.
+                </p>
+              </div>
+            </div>
+            <Button asChild size="lg" className="shrink-0 rounded-xl">
+              <Link to="/resources">
+                Explore resources
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </motion.div>
+        </section>
+
         {/* Final CTA */}
         <section className="mx-auto max-w-6xl px-4 pb-28">
           <motion.div
@@ -623,6 +660,9 @@ export default function Landing() {
             </Link>
             <Link to="/community" className="transition-colors hover:text-foreground">
               Community
+            </Link>
+            <Link to="/resources" className="transition-colors hover:text-foreground">
+              Resources
             </Link>
             <Link to="/auth" className="transition-colors hover:text-foreground">
               Sign in

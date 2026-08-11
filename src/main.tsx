@@ -15,6 +15,7 @@ const Landing = lazy(() => import("./pages/Landing.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const Community = lazy(() => import("./pages/Community.tsx"));
+const Resources = lazy(() => import("./pages/Resources.tsx"));
 const Profile = lazy(() => import("./pages/Profile.tsx"));
 const Admin = lazy(() => import("./pages/Admin.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
@@ -142,6 +143,14 @@ createRoot(document.getElementById("root")!).render(
                 element={
                   <RequireAuth>
                     <Community />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/resources"
+                element={
+                  <RequireAuth>
+                    <Resources />
                   </RequireAuth>
                 }
               />

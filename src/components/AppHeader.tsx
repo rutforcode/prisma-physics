@@ -15,6 +15,7 @@ import { Link, useNavigate } from "react-router";
 const NAV_ITEMS = [
   { id: "feed", label: "Feed", to: "/dashboard" },
   { id: "community", label: "Community", to: "/community" },
+  { id: "resources", label: "Resources", to: "/resources" },
 ] as const;
 
 type NavId = (typeof NAV_ITEMS)[number]["id"];
