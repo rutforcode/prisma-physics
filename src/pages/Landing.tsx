@@ -8,11 +8,15 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   Atom,
+  BookMarked,
   BookOpen,
   Clock3,
+  Compass,
   Lightbulb,
+  Magnet,
   Sigma,
   Sparkles,
+  Thermometer,
 } from "lucide-react";
 import { Link } from "react-router";
 
@@ -66,6 +70,63 @@ const FEATURED = [
     difficulty: "intro",
     summary:
       "Light bends when it changes medium — the single rule behind lenses, prisms, fiber optics, and mirages.",
+  },
+] as const;
+
+const REFERENCES = [
+  {
+    icon: BookOpen,
+    title: "Fundamentals of Physics",
+    authors: "Halliday, Resnick & Walker",
+    blurb:
+      "The canonical first-year companion — the exact problem-set energy the feed's worked examples are modeled on.",
+    area: "Intro sequence",
+    chip: "from-sky-400/30 to-indigo-500/20",
+  },
+  {
+    icon: Lightbulb,
+    title: "The Feynman Lectures on Physics",
+    authors: "Feynman, Leighton & Sands",
+    blurb:
+      "The gold standard for physical intuition — every Prism explanation opens the same way Feynman did: with the picture first.",
+    area: "Intuition first",
+    chip: "from-amber-400/25 to-orange-500/15",
+  },
+  {
+    icon: Magnet,
+    title: "Introduction to Electrodynamics",
+    authors: "David J. Griffiths",
+    blurb:
+      "The modern path through Gauss, Maxwell, and radiation — the source for every electromagnetism concept in the feed.",
+    area: "Electromagnetism",
+    chip: "from-indigo-400/30 to-violet-500/20",
+  },
+  {
+    icon: Atom,
+    title: "Introduction to Quantum Mechanics",
+    authors: "David J. Griffiths",
+    blurb:
+      "Wavefunctions, operators, and spin without the fog — the backbone of the quantum, atomic, and particle sections.",
+    area: "Quantum mechanics",
+    chip: "from-teal-400/30 to-cyan-500/20",
+  },
+  {
+    icon: Compass,
+    title: "Classical Mechanics",
+    authors: "John R. Taylor",
+    blurb:
+      "Lagrangians, Hamiltonians, and phase space made approachable — the reference behind analytical mechanics.",
+    area: "Analytical mechanics",
+    chip: "from-sky-400/30 to-cyan-500/20",
+  },
+  {
+    icon: Thermometer,
+    title: "An Introduction to Thermal Physics",
+    authors: "Daniel V. Schroeder",
+    blurb:
+      "Entropy, the Boltzmann factor, and statistical ideas told as a story — thermodynamics and stat mech, minus the mystery.",
+    area: "Thermal & statistical",
+    chip: "from-blue-400/30 to-indigo-500/20",
   },
 ] as const;
 
@@ -151,7 +212,7 @@ export default function Landing() {
         <div className="glass mx-auto flex max-w-6xl items-center justify-between rounded-2xl py-2.5 pl-4 pr-2.5">
           <Logo />
           <nav className="hidden items-center gap-1 md:flex">
-            {["Concepts", "Topics", "How it works"].map((label) => (
+            {["Concepts", "Topics", "How it works", "References"].map((label) => (
               <a
                 key={label}
                 href={`#${label.toLowerCase().replace(/ /g, "-")}`}
@@ -435,6 +496,76 @@ export default function Landing() {
                 </motion.div>
               );
             })}
+          </div>
+        </section>
+
+        {/* References */}
+        <section
+          id="references"
+          className="mx-auto max-w-6xl scroll-mt-28 px-4 pb-24"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end"
+          >
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                References
+              </p>
+              <h2 className="font-display mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
+                Built on the classics
+              </h2>
+              <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                The reading list every Prism concept traces back to — the same
+                books your lecturers recommend.
+              </p>
+            </div>
+          </motion.div>
+
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
+            {REFERENCES.map((ref, i) => (
+              <motion.div
+                key={ref.title}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.55, delay: i * 0.1 }}
+                className="glass glass-hover group flex h-full flex-col rounded-3xl p-6"
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={cn(
+                      "flex size-10 items-center justify-center rounded-xl bg-gradient-to-br",
+                      ref.chip,
+                    )}
+                  >
+                    <ref.icon className="size-5 text-primary" />
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-primary/15 bg-primary/5 text-[11px] font-medium text-muted-foreground"
+                  >
+                    {ref.area}
+                  </Badge>
+                </div>
+                <h3 className="font-display mt-5 text-lg font-semibold leading-snug tracking-tight transition-colors group-hover:text-primary">
+                  {ref.title}
+                </h3>
+                <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+                  {ref.authors}
+                </p>
+                <p className="mt-2.5 flex-1 text-sm leading-relaxed text-muted-foreground">
+                  {ref.blurb}
+                </p>
+                <p className="mt-5 inline-flex items-center gap-1.5 text-xs font-medium text-primary/80">
+                  <BookMarked className="size-3.5" />
+                  Study staple
+                </p>
+              </motion.div>
+            ))}
           </div>
         </section>
 
