@@ -51,6 +51,33 @@ async function hydrate(
     for (const id of images) {
       imageUrls.push(await ctx.storage.getUrl(id));
     }
+
+    // Edit history — snapshots recorded on every update, newest first.
+    const editHistory: {
+      editedAt: number;
+      editorId: Id<"users">;
+      editorName: string;
+      title: string;
+      body: string;
+      topic?: string;
+    }[] = [];
+    const edits = await ctx.db
+      .query("feedPostEdits")
+      .withIndex("by_feed_post", (q) => q.eq("feedPostId", post._id))
+      .collect();
+    edits.sort((a, b) => b.editedAt - a.editedAt);
+    for (const edit of edits.slice(0, 10)) {
+      const editor = await ctx.db.get(edit.editorId);
+      editHistory.push({
+        editedAt: edit.editedAt,
+        editorId: edit.editorId,
+        editorName: editor?.name ?? editor?.email?.split("@")[0] ?? "Someone",
+        title: edit.title,
+        body: edit.body,
+        topic: edit.topic,
+      });
+    }
+
     result.push({
       ...post,
       authorName: author?.name ?? author?.email?.split("@")[0] ?? "Prism Team",
@@ -58,6 +85,9 @@ async function hydrate(
       isTeamPost: author === null,
       images,
       imageUrls,
+      editHistory,
+      editedBy: editHistory[0]?.editorName ?? null,
+      editCount: editHistory.length,
     });
   }
   return result;
@@ -163,12 +193,23 @@ export const update = mutation({
       }
     }
 
+    const editedAt = Date.now();
     await ctx.db.patch(args.id, {
       title,
       body,
       topic: args.topic || undefined,
       images: images.length > 0 ? images : undefined,
-      editedAt: Date.now(),
+      editedAt,
+    });
+
+    // Record a snapshot of this edit for the history timeline.
+    await ctx.db.insert("feedPostEdits", {
+      feedPostId: args.id,
+      editorId: userId,
+      editedAt,
+      title,
+      body,
+      topic: args.topic || undefined,
     });
   },
 });

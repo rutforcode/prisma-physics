@@ -10,6 +10,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import {
+  EditHistoryPopover,
+  type PostEditRecord,
+} from "@/components/feed/EditHistoryPopover";
 import { MixedBody } from "@/components/feed/MixedBody";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -26,6 +30,9 @@ export interface FeedPostItem extends Doc<"feedPosts"> {
   isTeamPost: boolean;
   images: Id<"_storage">[];
   imageUrls: (string | null)[];
+  editHistory: PostEditRecord[];
+  editedBy: string | null;
+  editCount: number;
 }
 
 export function FeedPostCard({
@@ -95,7 +102,14 @@ export function FeedPostCard({
             {formatDistanceToNow(new Date(post._creationTime), {
               addSuffix: true,
             })}
-            {post.editedAt && <span> · edited</span>}
+            {post.editedAt && (
+              <span>
+                {" "}
+                · edited
+                {post.editCount > 1 ? ` ${post.editCount}×` : ""}
+                {post.editedBy ? ` by ${post.editedBy}` : ""}
+              </span>
+            )}
           </p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -119,6 +133,9 @@ export function FeedPostCard({
           >
             <Share2 className="size-4" />
           </button>
+          {post.editHistory.length > 0 && (
+            <EditHistoryPopover records={post.editHistory} />
+          )}
           {canEdit && onEdit && (
             <button
               type="button"

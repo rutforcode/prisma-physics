@@ -94,6 +94,16 @@ const schema = defineSchema(
       editedAt: v.optional(v.number()), // set when the author edits the post
     }).index("by_author", ["authorId"]),
 
+    // Snapshot of every feed announcement edit (powers the edit-history UI)
+    feedPostEdits: defineTable({
+      feedPostId: v.id("feedPosts"),
+      editorId: v.id("users"),
+      editedAt: v.number(),
+      title: v.string(),
+      body: v.string(),
+      topic: v.optional(topicValidator),
+    }).index("by_feed_post", ["feedPostId"]),
+
     // Snapshot of every community post edit (powers the edit-history UI)
     postEdits: defineTable({
       postId: v.id("posts"),
