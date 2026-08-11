@@ -222,6 +222,12 @@ export default function Landing() {
                 {label}
               </a>
             ))}
+            <Link
+              to="/resources"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/50 hover:text-foreground"
+            >
+              Resources
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" className="hidden sm:inline-flex">
