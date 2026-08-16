@@ -1,3 +1,4 @@
+import { AddResourceDialog } from "@/components/resources/AddResourceDialog";
 import { AppHeader } from "@/components/AppHeader";
 import { AuroraBackground } from "@/components/AuroraBackground";
 import { GlassFooter } from "@/components/GlassFooter";
@@ -22,10 +23,15 @@ import {
   sortResources,
   type PhysicsResource,
   type ResourceCategory,
+  type ResourceLevel,
   type ResourceSortKey,
   type ResourceTopic,
 } from "@/lib/resources";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
+import { useMutation, useQuery } from "convex/react";
 import {
   ArrowUpRight,
   Bookmark,
@@ -33,9 +39,12 @@ import {
   ExternalLink,
   FilterX,
   Globe2,
+  Loader2,
+  Plus,
   Search,
   Sparkles,
   Star,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -89,6 +98,11 @@ function matchesSearch(r: PhysicsResource, query: string) {
 }
 
 export default function Resources() {
+  const { user: currentUser } = useAuth();
+  const customResources = useQuery(api.resources.list);
+  const canManage = useQuery(api.resources.canManage);
+  const removeResource = useMutation(api.resources.remove);
+
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<"All" | ResourceCategory>("All");
   const [topic, setTopic] = useState<"All" | ResourceTopic>("All");
@@ -96,6 +110,8 @@ export default function Resources() {
   const [view, setView] = useState<"all" | "saved">("all");
   const [savedIds, setSavedIds] = useState<string[]>(loadSaved);
   const [selected, setSelected] = useState<PhysicsResource | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     try {
@@ -104,6 +120,52 @@ export default function Resources() {
       /* storage unavailable — bookmarks stay in-memory for the session */
     }
   }, [savedIds]);
+
+  // Merge user-added resources (admin/curator contributions) with the curated
+  // static library so filters, search, and sorting all see one combined list.
+  const allResources = useMemo<PhysicsResource[]>(() => {
+    const custom: PhysicsResource[] = (customResources ?? []).map((r) => ({
+      id: `custom:${r._id}`,
+      name: r.name,
+      description: r.description,
+      url: r.url,
+      domain: r.domain,
+      category: r.category as ResourceCategory,
+      topics: r.topics as ResourceTopic[],
+      levels: r.levels as ResourceLevel[],
+      badges: r.badges,
+      featured: r.featured,
+      tags: [],
+      source: r.source,
+      addedAt: new Date(r._creationTime).toISOString().slice(0, 10),
+      score: 70,
+    }));
+    return [...RESOURCES, ...custom];
+  }, [customResources]);
+
+  // Which custom resource belongs to which user (drives the delete button).
+  const customOwners = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const r of customResources ?? []) map[`custom:${r._id}`] = r.addedBy;
+    return map;
+  }, [customResources]);
+
+  const handleDelete = async (resId: string) => {
+    if (!resId.startsWith("custom:")) return;
+    const id = resId.slice("custom:".length) as Id<"customResources">;
+    setRemoving(true);
+    try {
+      await removeResource({ id });
+      toast("Resource removed from the library");
+      setSelected(null);
+    } catch (err) {
+      toast("Could not remove the resource", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   const toggleSaved = (id: string) => {
     setSavedIds((prev) => {
@@ -123,8 +185,8 @@ export default function Resources() {
   const filtered = useMemo(() => {
     const base =
       view === "saved"
-        ? RESOURCES.filter((r) => savedIds.includes(r.id))
-        : RESOURCES;
+        ? allResources.filter((r) => savedIds.includes(r.id))
+        : allResources;
     const list = base.filter(
       (r) =>
         matchesSearch(r, query) &&
@@ -132,15 +194,15 @@ export default function Resources() {
         (topic === "All" || r.topics.includes(topic)),
     );
     return sortResources(list, sort);
-  }, [query, category, topic, sort, view, savedIds]);
+  }, [allResources, query, category, topic, sort, view, savedIds]);
 
   const featured = useMemo(
     () =>
       sortResources(
-        RESOURCES.filter((r) => r.featured),
+        allResources.filter((r) => r.featured),
         sort,
       ),
-    [sort],
+    [allResources, sort],
   );
 
   const showFeatured = view === "all" && !hasActiveFilters;
@@ -273,6 +335,16 @@ export default function Resources() {
                 Clear filters ({activeCount})
               </button>
             )}
+            {canManage === true && (
+              <Button
+                size="sm"
+                className="rounded-xl"
+                onClick={() => setAddOpen(true)}
+              >
+                <Plus className="size-4" />
+                Add resource
+              </Button>
+            )}
             <SortSelect
               value={sort}
               onChange={(v) => setSort(v as ResourceSortKey)}
@@ -371,10 +443,22 @@ export default function Resources() {
               resource={selected}
               saved={savedIds.includes(selected.id)}
               onToggleSave={() => toggleSaved(selected.id)}
+              canDelete={
+                selected.id.startsWith("custom:") &&
+                currentUser !== null &&
+                currentUser !== undefined &&
+                (currentUser.role === "admin" ||
+                  customOwners[selected.id] === currentUser._id)
+              }
+              onDelete={() => handleDelete(selected.id)}
+              deleting={removing}
             />
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Add resource dialog (admins & curators) */}
+      <AddResourceDialog open={addOpen} onOpenChange={setAddOpen} />
     </div>
   );
 }
@@ -605,11 +689,18 @@ function ResourceDetail({
   resource: r,
   saved,
   onToggleSave,
+  canDelete = false,
+  onDelete,
+  deleting = false,
 }: {
   resource: PhysicsResource;
   saved: boolean;
   onToggleSave: () => void;
+  canDelete?: boolean;
+  onDelete?: () => void;
+  deleting?: boolean;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const meta = CATEGORY_META[r.category];
   const Icon = meta.icon;
   const level = difficultyMeta(r.levels[0]);
@@ -709,6 +800,36 @@ function ResourceDetail({
           </div>
         )}
       </div>
+
+      {canDelete && onDelete && (
+        <div className="mt-5 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+          <p className="text-[11px] font-medium text-destructive/80">
+            This resource was added by a curator — you can remove it.
+          </p>
+          <Button
+            size="sm"
+            variant={confirmDelete ? "destructive" : "outline"}
+            className="mt-2.5 rounded-xl"
+            disabled={deleting}
+            onClick={() => {
+              if (confirmDelete) {
+                onDelete();
+                setConfirmDelete(false);
+              } else {
+                setConfirmDelete(true);
+                setTimeout(() => setConfirmDelete(false), 4000);
+              }
+            }}
+          >
+            {deleting ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="size-3.5" />
+            )}
+            {confirmDelete ? "Click again to confirm" : "Remove resource"}
+          </Button>
+        </div>
+      )}
 
       <a
         href={r.url}

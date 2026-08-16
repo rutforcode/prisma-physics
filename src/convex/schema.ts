@@ -138,6 +138,23 @@ const schema = defineSchema(
       .index("by_recipient", ["recipientId"])
       .index("by_recipient_read", ["recipientId", "read"]),
 
+    // User-added resources on the Physics Resources page (admins and feed
+    // curators can contribute; authors can remove their own, admins any)
+    customResources: defineTable({
+      name: v.string(),
+      description: v.string(),
+      url: v.string(),
+      domain: v.string(),
+      category: v.string(),
+      topics: v.array(v.string()),
+      levels: v.array(v.string()),
+      badges: v.array(v.string()),
+      featured: v.boolean(),
+      source: v.string(),
+      addedBy: v.id("users"),
+      addedByName: v.optional(v.string()),
+    }).index("by_added_by", ["addedBy"]),
+
     // Physics concept explanations shown in the study feed
     concepts: defineTable({
       slug: v.string(),
