@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { query, mutation, QueryCtx } from "./_generated/server";
 
 /**
@@ -81,6 +81,83 @@ export const canManage = query({
   },
 });
 
+type Input = {
+  name: string;
+  description: string;
+  url: string;
+  domain: string;
+  category: string;
+  topics: string[];
+  levels: string[];
+  badges: string[];
+  source: string;
+};
+
+/** Shared create/edit validation. Throws a friendly error on bad input. */
+function validateInput(args: Input) {
+  const name = args.name.trim();
+  const description = args.description.trim();
+  const source = args.source.trim();
+  const url = args.url.trim();
+
+  if (name.length === 0) throw new Error("Give the resource a name.");
+  if (name.length > 80) throw new Error("Keep the name under 80 characters.");
+  if (description.length === 0) {
+    throw new Error("Add a one-line description of what this resource is.");
+  }
+  if (description.length > 300) {
+    throw new Error("Keep the description under 300 characters.");
+  }
+  if (source.length === 0) throw new Error("Who provides this resource?");
+  if (source.length > 80) throw new Error("Keep the provider under 80 characters.");
+
+  // Validate the URL (http/https only — no javascript:, data:, etc.)
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("That doesn't look like a valid URL.");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Use a http(s) link to the resource.");
+  }
+
+  if (!(CATEGORIES as readonly string[]).includes(args.category)) {
+    throw new Error("Pick a valid category.");
+  }
+  if (
+    args.topics.length === 0 ||
+    args.topics.length > 4 ||
+    !args.topics.every((t) => (TOPICS as readonly string[]).includes(t))
+  ) {
+    throw new Error("Pick between 1 and 4 valid topics.");
+  }
+  if (
+    args.levels.length === 0 ||
+    !args.levels.every((l) => (LEVELS as readonly string[]).includes(l))
+  ) {
+    throw new Error("Pick a valid level.");
+  }
+  if (
+    args.badges.length > 4 ||
+    !args.badges.every((b) => (BADGES as readonly string[]).includes(b))
+  ) {
+    throw new Error("Pick valid feature badges.");
+  }
+
+  return {
+    name,
+    description,
+    source,
+    url,
+    domain: args.domain.trim() || parsed.hostname.replace(/^www\./, ""),
+    category: args.category,
+    topics: args.topics,
+    levels: args.levels,
+    badges: args.badges,
+  };
+}
+
 /**
  * Add a resource to the library. Admins and feed curators only; admins may
  * also flag their submission as featured.
@@ -104,85 +181,89 @@ export const create = mutation({
     }
     const userId = (await getAuthUserId(ctx)) as Id<"users">;
     const user = await ctx.db.get(userId);
+    const clean = validateInput(args);
 
-    const name = args.name.trim();
-    const description = args.description.trim();
-    const source = args.source.trim();
-    const url = args.url.trim();
-
-    if (name.length === 0) throw new Error("Give the resource a name.");
-    if (name.length > 80) throw new Error("Keep the name under 80 characters.");
-    if (description.length === 0) {
-      throw new Error("Add a one-line description of what this resource is.");
-    }
-    if (description.length > 300) {
-      throw new Error("Keep the description under 300 characters.");
-    }
-    if (source.length === 0) throw new Error("Who provides this resource?");
-    if (source.length > 80) throw new Error("Keep the provider under 80 characters.");
-
-    // Validate the URL (http/https only — no javascript:, data:, etc.)
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw new Error("That doesn't look like a valid URL.");
-    }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error("Use a http(s) link to the resource.");
-    }
-
-    if (!(CATEGORIES as readonly string[]).includes(args.category)) {
-      throw new Error("Pick a valid category.");
-    }
-    if (
-      args.topics.length === 0 ||
-      args.topics.length > 4 ||
-      !args.topics.every((t) => (TOPICS as readonly string[]).includes(t))
-    ) {
-      throw new Error("Pick between 1 and 4 valid topics.");
-    }
-    if (
-      args.levels.length === 0 ||
-      !args.levels.every((l) => (LEVELS as readonly string[]).includes(l))
-    ) {
-      throw new Error("Pick a valid level.");
-    }
-    if (
-      args.badges.length > 4 ||
-      !args.badges.every((b) => (BADGES as readonly string[]).includes(b))
-    ) {
-      throw new Error("Pick valid feature badges.");
-    }
-
-    // Reject exact duplicates (same normalized URL or same name) against both
-    // the user-added table and the curated list would need the client module;
-    // here we dedupe against the database.
-    const normalized = url.replace(/\/+$/, "").toLowerCase();
+    // Reject duplicates against the user-added table (same URL or name).
+    const normalized = clean.url.replace(/\/+$/, "").toLowerCase();
     const existing = await ctx.db.query("customResources").collect();
     for (const r of existing) {
       if (r.url.replace(/\/+$/, "").toLowerCase() === normalized) {
         throw new Error("That URL is already in the resource library.");
       }
-      if (r.name.trim().toLowerCase() === name.toLowerCase()) {
+      if (r.name.trim().toLowerCase() === clean.name.toLowerCase()) {
         throw new Error("A resource with that name already exists.");
       }
     }
 
-    const isAdmin = user?.role === "admin";
     return await ctx.db.insert("customResources", {
-      name,
-      description,
-      url,
-      domain: args.domain.trim() || parsed.hostname.replace(/^www\./, ""),
-      category: args.category,
-      topics: args.topics,
-      levels: args.levels,
-      badges: args.badges,
-      featured: args.featured === true && isAdmin,
-      source,
+      ...clean,
+      featured: args.featured === true && user?.role === "admin",
       addedBy: userId,
       addedByName: user?.name ?? user?.email?.split("@")[0] ?? "Prism author",
+    });
+  },
+});
+
+/**
+ * Edit a resource — the curator who added it, or any admin. Same validation
+ * as create. The featured flag is only ever changed by admins: curators'
+ * edits keep whatever featured state an admin chose.
+ */
+export const update = mutation({
+  args: {
+    id: v.id("customResources"),
+    name: v.string(),
+    description: v.string(),
+    url: v.string(),
+    domain: v.string(),
+    category: v.string(),
+    topics: v.array(v.string()),
+    levels: v.array(v.string()),
+    badges: v.array(v.string()),
+    featured: v.optional(v.boolean()),
+    source: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("You must be signed in.");
+    }
+    const user = await ctx.db.get(userId);
+    const isAdmin = user?.role === "admin";
+    if (!isAdmin && user?.canPostFeed !== true) {
+      throw new Error("Only admins and feed curators can edit resources.");
+    }
+
+    const resource = await ctx.db.get(args.id);
+    if (resource === null) {
+      throw new Error("Resource not found.");
+    }
+    if (!isAdmin && resource.addedBy !== userId) {
+      throw new Error("You can only edit resources you added.");
+    }
+
+    const clean = validateInput(args);
+
+    // Don't trip the duplicate check on the row being edited.
+    const normalized = clean.url.replace(/\/+$/, "").toLowerCase();
+    const existing = await ctx.db.query("customResources").collect();
+    for (const r of existing) {
+      if (r._id === args.id) continue;
+      if (r.url.replace(/\/+$/, "").toLowerCase() === normalized) {
+        throw new Error("That URL is already in the resource library.");
+      }
+      if (r.name.trim().toLowerCase() === clean.name.toLowerCase()) {
+        throw new Error("A resource with that name already exists.");
+      }
+    }
+
+    await ctx.db.patch(args.id, {
+      ...clean,
+      // Admins may change featured; curators' edits leave it untouched.
+      featured:
+        args.featured === undefined
+          ? resource.featured
+          : args.featured === true && isAdmin,
     });
   },
 });
@@ -207,3 +288,5 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+export type CustomResourceDoc = Doc<"customResources">;

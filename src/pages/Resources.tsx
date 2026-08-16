@@ -1,4 +1,7 @@
-import { AddResourceDialog } from "@/components/resources/AddResourceDialog";
+import {
+  AddResourceDialog,
+  type CustomResourceRow,
+} from "@/components/resources/AddResourceDialog";
 import { AppHeader } from "@/components/AppHeader";
 import { AuroraBackground } from "@/components/AuroraBackground";
 import { GlassFooter } from "@/components/GlassFooter";
@@ -40,11 +43,13 @@ import {
   FilterX,
   Globe2,
   Loader2,
+  Pencil,
   Plus,
   Search,
   Sparkles,
   Star,
   Trash2,
+  UserRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -111,6 +116,8 @@ export default function Resources() {
   const [savedIds, setSavedIds] = useState<string[]>(loadSaved);
   const [selected, setSelected] = useState<PhysicsResource | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [editingResource, setEditingResource] =
+    useState<CustomResourceRow | null>(null);
   const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
@@ -149,6 +156,30 @@ export default function Resources() {
     for (const r of customResources ?? []) map[`custom:${r._id}`] = r.addedBy;
     return map;
   }, [customResources]);
+
+  // Raw docs by merged id, for prefilling the edit dialog.
+  const customById = useMemo(() => {
+    const map: Record<string, CustomResourceRow> = {};
+    for (const r of customResources ?? []) map[`custom:${r._id}`] = r;
+    return map;
+  }, [customResources]);
+
+  // "Added by …" credits for curator-contributed cards.
+  const addedByNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const r of customResources ?? []) {
+      if (r.addedByName) map[`custom:${r._id}`] = r.addedByName;
+    }
+    return map;
+  }, [customResources]);
+
+  const handleEdit = (resId: string) => {
+    const doc = customById[resId];
+    if (!doc) return;
+    setSelected(null);
+    setEditingResource(doc);
+    setAddOpen(true);
+  };
 
   const handleDelete = async (resId: string) => {
     if (!resId.startsWith("custom:")) return;
@@ -206,6 +237,16 @@ export default function Resources() {
   );
 
   const showFeatured = view === "all" && !hasActiveFilters;
+
+  // Selected custom resources can be edited/removed by their contributor or
+  // by any admin (the backend enforces this too).
+  const canManageSelected =
+    selected !== null &&
+    selected.id.startsWith("custom:") &&
+    currentUser !== null &&
+    currentUser !== undefined &&
+    (currentUser.role === "admin" ||
+      customOwners[selected.id] === currentUser._id);
 
   const clearFilters = () => {
     setQuery("");
@@ -371,6 +412,7 @@ export default function Resources() {
                   saved={savedIds.includes(r.id)}
                   onToggleSave={() => toggleSaved(r.id)}
                   onOpen={() => setSelected(r)}
+                  addedBy={addedByNames[r.id]}
                 />
               ))}
             </div>
@@ -427,6 +469,7 @@ export default function Resources() {
                 saved={savedIds.includes(r.id)}
                 onToggleSave={() => toggleSaved(r.id)}
                 onOpen={() => setSelected(r)}
+                addedBy={addedByNames[r.id]}
               />
             ))}
           </motion.div>
@@ -443,13 +486,14 @@ export default function Resources() {
               resource={selected}
               saved={savedIds.includes(selected.id)}
               onToggleSave={() => toggleSaved(selected.id)}
-              canDelete={
-                selected.id.startsWith("custom:") &&
-                currentUser !== null &&
-                currentUser !== undefined &&
-                (currentUser.role === "admin" ||
-                  customOwners[selected.id] === currentUser._id)
+              addedBy={
+                selected.id.startsWith("custom:")
+                  ? addedByNames[selected.id]
+                  : undefined
               }
+              canEdit={canManageSelected}
+              onEdit={() => handleEdit(selected.id)}
+              canDelete={canManageSelected}
               onDelete={() => handleDelete(selected.id)}
               deleting={removing}
             />
@@ -457,8 +501,19 @@ export default function Resources() {
         </DialogContent>
       </Dialog>
 
-      {/* Add resource dialog (admins & curators) */}
-      <AddResourceDialog open={addOpen} onOpenChange={setAddOpen} />
+      {/* Add/edit resource dialog (admins & curators) — mounted per edit
+          target so the form always starts from the resource being edited. */}
+      {(addOpen || editingResource !== null) && (
+        <AddResourceDialog
+          key={editingResource?._id ?? "new"}
+          open={addOpen}
+          onOpenChange={(open) => {
+            setAddOpen(open);
+            if (!open) setEditingResource(null);
+          }}
+          editing={editingResource}
+        />
+      )}
     </div>
   );
 }
@@ -468,11 +523,14 @@ function ResourceCard({
   saved,
   onToggleSave,
   onOpen,
+  addedBy,
 }: {
   resource: PhysicsResource;
   saved: boolean;
   onToggleSave: () => void;
   onOpen: () => void;
+  /** Curator-contributed credit, e.g. "Added by Ada" */
+  addedBy?: string;
 }) {
   const meta = CATEGORY_META[r.category];
   const Icon = meta.icon;
@@ -569,6 +627,13 @@ function ResourceCard({
         </div>
       )}
 
+      {addedBy && (
+        <span className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-full border border-sky-300/50 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+          <UserRound className="size-2.5" />
+          Added by {addedBy}
+        </span>
+      )}
+
       <div className="mt-auto flex items-center justify-between gap-2 pt-4">
         <span className="min-w-0 truncate text-xs text-muted-foreground">
           {r.source}
@@ -593,11 +658,14 @@ function FeaturedCard({
   saved,
   onToggleSave,
   onOpen,
+  addedBy,
 }: {
   resource: PhysicsResource;
   saved: boolean;
   onToggleSave: () => void;
   onOpen: () => void;
+  /** Curator-contributed credit, e.g. "Added by Ada" */
+  addedBy?: string;
 }) {
   const meta = CATEGORY_META[r.category];
   const Icon = meta.icon;
@@ -666,6 +734,12 @@ function FeaturedCard({
           <Badge variant="outline" className={cn("rounded-full border text-[11px] font-medium", level.badge)}>
             {level.label}
           </Badge>
+          {addedBy && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/50 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+              <UserRound className="size-2.5" />
+              Added by {addedBy}
+            </span>
+          )}
         </div>
         <div className="mt-4 flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">{r.source}</span>
@@ -689,6 +763,9 @@ function ResourceDetail({
   resource: r,
   saved,
   onToggleSave,
+  addedBy,
+  canEdit = false,
+  onEdit,
   canDelete = false,
   onDelete,
   deleting = false,
@@ -696,6 +773,10 @@ function ResourceDetail({
   resource: PhysicsResource;
   saved: boolean;
   onToggleSave: () => void;
+  /** Curator-contributed credit, e.g. "Added by Ada" */
+  addedBy?: string;
+  canEdit?: boolean;
+  onEdit?: () => void;
   canDelete?: boolean;
   onDelete?: () => void;
   deleting?: boolean;
@@ -723,25 +804,36 @@ function ResourceDetail({
             {r.domain}
           </DialogDescription>
         </div>
-        <button
-          onClick={onToggleSave}
-          className={cn(
-            "ml-auto shrink-0 rounded-xl border px-3 py-2 text-xs font-medium transition-all",
-            saved
-              ? "border-primary/30 bg-primary/10 text-primary"
-              : "border-white/60 bg-white/50 text-muted-foreground hover:text-primary",
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {canEdit && onEdit && (
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/60 bg-white/50 px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:border-primary/40 hover:text-primary"
+            >
+              <Pencil className="size-3.5" />
+              Edit
+            </button>
           )}
-        >
-          {saved ? (
-            <span className="flex items-center gap-1.5">
-              <BookmarkCheck className="size-3.5" /> Saved
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5">
-              <Bookmark className="size-3.5" /> Save
-            </span>
-          )}
-        </button>
+          <button
+            onClick={onToggleSave}
+            className={cn(
+              "shrink-0 rounded-xl border px-3 py-2 text-xs font-medium transition-all",
+              saved
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-white/60 bg-white/50 text-muted-foreground hover:text-primary",
+            )}
+          >
+            {saved ? (
+              <span className="flex items-center gap-1.5">
+                <BookmarkCheck className="size-3.5" /> Saved
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <Bookmark className="size-3.5" /> Save
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       <p className="pt-2 text-sm leading-relaxed text-muted-foreground">
@@ -776,6 +868,12 @@ function ResourceDetail({
               Provided by
             </h4>
             <p className="mt-1 text-sm text-foreground">{r.source}</p>
+            {addedBy && (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <UserRound className="size-3" />
+                Added by {addedBy}
+              </p>
+            )}
           </div>
         </div>
         {r.badges.length > 0 && (

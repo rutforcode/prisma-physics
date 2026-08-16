@@ -1,5 +1,12 @@
 import { api } from "@/convex/_generated/api";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { useAuth } from "@/hooks/use-auth";
+
+/** A customResources row as the list query returns it (name resolved). */
+export type CustomResourceRow = Omit<Doc<"customResources" >, "addedByName"> & {
+  addedByName: string | null;
+};
+
 import {
   RESOURCE_CATEGORIES,
   RESOURCE_TOPICS,
@@ -18,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useMutation } from "convex/react";
-import { Check, Link2, Loader2, Plus, Star } from "lucide-react";
+import { Check, Link2, Loader2, Pencil, Plus, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -69,38 +76,39 @@ function normalizeUrl(raw: string): { url: string; domain: string } {
 export function AddResourceDialog({
   open,
   onOpenChange,
+  editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When set, the dialog edits this resource instead of creating one. */
+  editing?: CustomResourceRow | null;
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const addResource = useMutation(api.resources.create);
+  const updateResource = useMutation(api.resources.update);
 
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<ResourceCategory | "">("");
-  const [topics, setTopics] = useState<ResourceTopic[]>([]);
-  const [level, setLevel] = useState<ResourceLevel | "">("");
-  const [source, setSource] = useState("");
-  const [badges, setBadges] = useState<string[]>([]);
-  const [featured, setFeatured] = useState(false);
+  // The parent mounts this dialog per edit target (key = resource id), so
+  // initializing from props here always reflects the resource being edited.
+  const [name, setName] = useState(editing?.name ?? "");
+  const [url, setUrl] = useState(editing?.url ?? "");
+  const [description, setDescription] = useState(editing?.description ?? "");
+  const [category, setCategory] = useState<ResourceCategory | "">(
+    (editing?.category as ResourceCategory) ?? "",
+  );
+  const [topics, setTopics] = useState<ResourceTopic[]>(
+    (editing?.topics as ResourceTopic[]) ?? [],
+  );
+  const [level, setLevel] = useState<ResourceLevel | "">(
+    (editing?.levels[0] as ResourceLevel) ?? "",
+  );
+  const [source, setSource] = useState(editing?.source ?? "");
+  const [badges, setBadges] = useState<string[]>(editing?.badges ?? []);
+  const [featured, setFeatured] = useState(editing?.featured ?? false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const reset = () => {
-    setName("");
-    setUrl("");
-    setDescription("");
-    setCategory("");
-    setTopics([]);
-    setLevel("");
-    setSource("");
-    setBadges([]);
-    setFeatured(false);
-    setError(null);
-  };
+  const isEdit = editing !== null && editing !== undefined;
 
   const toggleTopic = (t: ResourceTopic) =>
     setTopics((prev) =>
@@ -133,7 +141,7 @@ export function AddResourceDialog({
     }
     setSubmitting(true);
     try {
-      await addResource({
+      const fields = {
         name: name.trim(),
         url: urlInfo.url,
         domain: urlInfo.domain,
@@ -142,17 +150,29 @@ export function AddResourceDialog({
         topics,
         levels: [level as ResourceLevel],
         badges,
-        featured,
         source: source.trim(),
-      });
-      toast("Resource added to the library", {
-        description: `${name.trim()} is now listed for your classmates.`,
-        icon: <Check className="size-4" />,
-      });
-      reset();
+      };
+      if (editing) {
+        await updateResource({
+          id: editing._id,
+          ...fields,
+          // Only admins may change the featured flag.
+          ...(isAdmin ? { featured } : {}),
+        });
+        toast("Resource updated", {
+          description: `${name.trim()} has been updated in the library.`,
+          icon: <Check className="size-4" />,
+        });
+      } else {
+        await addResource({ ...fields, featured });
+        toast("Resource added to the library", {
+          description: `${name.trim()} is now listed for your classmates.`,
+          icon: <Check className="size-4" />,
+        });
+      }
       onOpenChange(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not add the resource.");
+      setError(e instanceof Error ? e.message : "Could not save the resource.");
     } finally {
       setSubmitting(false);
     }
@@ -171,21 +191,22 @@ export function AddResourceDialog({
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o) reset();
-        onOpenChange(o);
+        if (!o) onOpenChange(false);
+        else onOpenChange(true);
       }}
     >
       <DialogContent className="glass-strong max-h-[90vh] max-w-lg overflow-y-auto rounded-3xl border-white/60">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <span className="glass-chip flex size-8 items-center justify-center rounded-lg text-primary">
-              <Plus className="size-4" />
+              {isEdit ? <Pencil className="size-4" /> : <Plus className="size-4" />}
             </span>
-            Add a resource
+            {isEdit ? "Edit resource" : "Add a resource"}
           </DialogTitle>
           <DialogDescription className="text-sm">
-            Share a tool, course, or reference you vouch for — it appears in
-            the library for every student.
+            {isEdit
+              ? "Fix the details and they update in the library for every student."
+              : "Share a tool, course, or reference you vouch for — it appears in the library for every student."}
           </DialogDescription>
         </DialogHeader>
 
@@ -365,10 +386,12 @@ export function AddResourceDialog({
             <Button onClick={submit} disabled={!canSubmit}>
               {submitting ? (
                 <Loader2 className="size-4 animate-spin" />
+              ) : isEdit ? (
+                <Check className="size-4" />
               ) : (
                 <Plus className="size-4" />
               )}
-              Add to library
+              {isEdit ? "Save changes" : "Add to library"}
             </Button>
           </div>
         </div>
